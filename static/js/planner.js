@@ -57,6 +57,7 @@
   var SVG_LIXEIRA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>';
   var SVG_ALERTA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>';
   var SVG_REPETIR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path></svg>';
+  var SVG_PDF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h6M9 17h4"></path></svg>';
   var SVG_COPIAR_DOC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>';
   var SVG_MAIS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>';
   var SVG_LIKE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm0 0 5-8a2.2 2.2 0 0 1 3 2.2L14 8h5.2a2 2 0 0 1 2 2.3l-1.3 8a2 2 0 0 1-2 1.7H7z"></path></svg>';
@@ -1474,8 +1475,26 @@
     bDup.id = 'btnResDuplicar';
     bDup.innerHTML = SVG_COPIAR_DOC + '<span>Duplicar e editar</span>';
     bDup.addEventListener('click', function(){ duplicarRegistro(reg); });
+    // PDF diagramado (planner-pdf.js): capa, telas marcadas e relatório
+    var bPdf = mk('button', 'pl-btn pl-btn-sec pl-btn-peq');
+    bPdf.type = 'button';
+    bPdf.id = 'btnResPdf';
+    bPdf.innerHTML = SVG_PDF + '<span>Exportar PDF</span>';
+    bPdf.addEventListener('click', function(){
+      if (!TA.plannerPdf || bPdf.disabled) return;
+      var rotulo = bPdf.innerHTML;
+      bPdf.disabled = true;
+      bPdf.innerHTML = '<span class="pl-giro" aria-hidden="true"></span><span>Preparando PDF…</span>';
+      TA.plannerPdf.exportar(reg, nomePlataforma()).catch(function(e){
+        notificar('Não foi possível exportar o PDF: ' + mensagemErro(e));
+      }).then(function(){
+        bPdf.disabled = false;
+        bPdf.innerHTML = rotulo;
+      });
+    });
     acoes.appendChild(bNova);
     acoes.appendChild(bDup);
+    acoes.appendChild(bPdf);
     rodape.appendChild(acoes);
     rodape.appendChild(mk('span', 'pl-res-meta', 'Analisada ' + dataCurta(reg.atualizadoEm || reg.criadoEm)));
     cab.appendChild(rodape);
