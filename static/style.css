@@ -23,7 +23,7 @@ padding: 26px 20px;
 position: relative;
 background:
   radial-gradient(640px 420px at 10% -10%, rgba(204,9,47,.09), transparent 62%),
-  radial-gradient(760px 520px at 108% 112%, rgba(106,113,128,.10), transparent 62%),
+  radial-gradient(760px 520px at 108% 112%, rgba(34,53,124,.11), transparent 62%),
   linear-gradient(160deg, #F9FAFD 0%, #EDF0F6 100%);
 }
 .tela-login::before{
@@ -75,19 +75,6 @@ border: 1px solid #F3D3DA;
 border-radius: 999px;
 padding: 5px 13px;
 margin-bottom: 20px;
-}
-/* Ferramentas da plataforma, logo abaixo do chip: o login é um só para todas */
-.login-produtos {
-font-size: 12px;
-font-weight: 600;
-color: var(--tinta-suave);
-letter-spacing: .01em;
-margin: -10px 0 18px;
-}
-.login-produtos .sep {
-color: var(--vermelho);
-font-weight: 800;
-margin: 0 2px;
 }
 .login-box button:active {
 transform: translateY(1px);
@@ -173,7 +160,7 @@ font-size: 24px;
 font-weight: 700;
 letter-spacing: 4px;
 text-align: center;
-color: var(--tinta);
+color: var(--marinho-escuro);
 background: #fff;
 border: 1.5px dashed #C9CEDB;
 border-radius: 12px;
@@ -181,10 +168,9 @@ padding: 12px 10px;
 margin-bottom: 10px;
 user-select: all;
 }
-/* No celular os dois botões não cabem lado a lado: quebram de linha */
-.linha-device { display: flex; flex-wrap: wrap; gap: 8px; }
+.linha-device { display: flex; gap: 8px; }
 .login-box .btn-mini {
-flex: 1 1 140px;
+flex: 1;
 display: flex;
 align-items: center;
 justify-content: center;
