@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="validando">
+<head>
+<meta charset="utf-8">
+__GTM_HEAD__
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tag Planner | __NOME_PLATAFORMA__</title>
+<link rel="icon" type="image/svg+xml" href="/static/planner-icone.svg">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/planner.css">
+</head>
+<body>
+__GTM_BODY__
+  <!-- Fica oculto até o planner.js confirmar a sessão (sem sessão volta ao login) -->
+  <div class="app pl-app" id="app" style="display: none;">
+    <aside class="sidebar" id="sidebar" aria-label="Histórico de análises">
+      <div class="sidebar-top">
+        <div class="brand">
+          <img src="/static/planner-icone.svg" alt="">
+          <span>Tag Planner<span class="marca-sub">__NOME_PLATAFORMA__</span></span>
+        </div>
+        <button type="button" class="btn-novo" id="btnNovaAnalise">&#43;&nbsp; Nova análise</button>
+      </div>
+      <div class="sidebar-lista" id="listaAnalises"></div>
+      <div class="sidebar-rodape">
+        <div class="rodape-label">Desenvolvido por</div>
+        <div class="rodape-equipe">COE Plataforma de Canais Digitais</div>
+        <div class="rodape-contatos">
+          <a href="mailto:daniel.n.santos@bradesco.com.br" title="daniel.n.santos@bradesco.com.br"><span class="ico">&#9993;</span> daniel.n.santos@bradesco.com.br</a>
+          <a href="mailto:lucas.moreira@bradesco.com.br" title="lucas.moreira@bradesco.com.br"><span class="ico">&#9993;</span> lucas.moreira@bradesco.com.br</a>
+        </div>
+      </div>
+    </aside>
+
+    <div class="overlay" id="overlay"></div>
+
+    <main class="principal">
+      <header class="topo">
+        <button type="button" class="btn-menu" id="btnMenu" aria-label="Mostrar/ocultar histórico de análises" title="Mostrar/ocultar histórico de análises" aria-controls="sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.2"></rect><line x1="9" y1="4" x2="9" y2="20"></line></svg>
+        </button>
+        <a class="btn-home" id="btnHome" href="/" title="Início da plataforma" aria-label="Início da plataforma">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+        </a>
+        <div class="titulo-conversa" id="tituloPagina">Tag Planner</div>
+        <div class="usuario-area" id="usuarioArea">
+          <button class="btn-usuario" id="btnUsuario" aria-label="Conta Google" title="Conta Google">
+            <img id="fotoUsuario" alt="Foto do usuário" referrerpolicy="no-referrer">
+          </button>
+          <div class="menu-usuario" id="menuUsuario">
+            <img class="menu-foto" id="menuFoto" alt="" referrerpolicy="no-referrer">
+            <div class="menu-nome" id="menuNome"></div>
+            <div class="menu-email" id="menuEmail"></div>
+            <a class="btn-admin" id="btnInicio" href="/">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path></svg>
+              Início da plataforma
+            </a>
+            <a class="btn-admin" id="btnAdmin" href="/admin" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+              Painel administrativo
+            </a>
+            <button class="btn-sair" id="btnSair">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              Sair
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="pl-conteudo" id="conteudo">
+
+        <!-- ============ Nova análise (formulário) ============ -->
+        <section class="pl-vista" id="vistaForm" aria-labelledby="formTitulo">
+          <div class="pl-miolo">
+            <header class="pl-intro">
+              <img class="pl-intro-icone" src="/static/planner-icone.svg" alt="">
+              <div class="pl-intro-txt">
+                <h1 id="formTitulo" tabindex="-1" data-foco>Nova análise</h1>
+                <p class="pl-intro-tagline">Do KPI ao plano mínimo de tagueamento</p>
+                <p class="pl-intro-texto">Envie as telas da jornada e a pergunta de negócio. O Tag Planner indica o que taguear (e o que não), monta o plano mínimo de mensuração e marca os elementos na imagem.</p>
+              </div>
+              <button type="button" class="pl-btn-link pl-intro-limpar" id="btnLimpar" hidden>Limpar formulário</button>
+            </header>
+
+            <div class="pl-recentes" id="recentes" hidden></div>
+
+            <div class="pl-banner" id="bannerEdicao" role="status" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+              <span id="bannerEdicaoTxt"></span>
+              <button type="button" class="pl-btn-link" id="btnBannerDescartar">Começar do zero</button>
+            </div>
+
+            <div class="pl-form-grid">
+              <!-- 1. Telas -->
+              <section class="pl-cartao pl-sec" aria-labelledby="secTelasTitulo">
+                <div class="pl-sec-cab">
+                  <span class="pl-sec-num" aria-hidden="true">1</span>
+                  <div class="pl-sec-tit">
+                    <h2 id="secTelasTitulo">Telas da jornada</h2>
+                    <p class="pl-sec-sub">Na ordem em que o cliente passa por elas.</p>
+                  </div>
+                  <span class="pl-contador" id="contadorTelas">0/6</span>
+                </div>
+
+                <div class="pl-abas" role="tablist" aria-label="Como adicionar as telas">
+                  <button type="button" class="pl-aba" role="tab" id="abaUpload" aria-controls="painelUpload" aria-selected="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"></rect><circle cx="9" cy="9" r="1.8"></circle><path d="m21 15-4.5-4.5L6 21"></path></svg>
+                    Enviar imagem
+                  </button>
+                  <button type="button" class="pl-aba" role="tab" id="abaFigma" aria-controls="painelFigma" aria-selected="false" tabindex="-1">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"></path></svg>
+                    URL do Figma
+                  </button>
+                </div>
+
+                <div class="pl-painel" role="tabpanel" id="painelUpload" aria-labelledby="abaUpload">
+                  <div class="pl-drop" id="dropzone" role="button" tabindex="0" aria-describedby="dropDica">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M4 15v3.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V15"></path></svg>
+                    <div class="pl-drop-titulo">Arraste as telas aqui ou <u>escolha os arquivos</u></div>
+                    <div class="pl-drop-dica" id="dropDica"><span>Também dá para colar um print com Ctrl+V.</span> <span>PNG, JPG, WEBP ou GIF · até <span id="limiteTelas">6</span> telas</span></div>
+                    <div class="pl-drop-status" id="dropStatus" role="status" aria-live="polite" hidden></div>
+                  </div>
+                  <input type="file" id="inputArquivo" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+                </div>
+
+                <div class="pl-painel" role="tabpanel" id="painelFigma" aria-labelledby="abaFigma" hidden>
+                  <label class="pl-rotulo" for="figmaUrl">Link do arquivo ou do frame</label>
+                  <div class="pl-linha-busca">
+                    <input type="url" class="pl-input" id="figmaUrl" placeholder="https://www.figma.com/design/…" autocomplete="off" spellcheck="false" aria-describedby="figmaUrlDica">
+                    <button type="button" class="pl-btn pl-btn-sec" id="btnFigmaBuscar">Buscar</button>
+                  </div>
+                  <p class="pl-ajuda" id="figmaUrlDica">Link de um frame (com node-id) entra direto. Link do arquivo ou de uma página mostra os frames para você escolher.</p>
+                  <p class="pl-ajuda pl-ajuda-png">Sem cota na API do Figma? No Figma, selecione o frame e use <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> (copiar como PNG); depois volte à aba “Enviar imagem” e cole com <kbd>Ctrl</kbd>+<kbd>V</kbd>.</p>
+
+                  <details class="pl-token" id="figmaTokenArea">
+                    <summary><span id="figmaTokenResumo">Usar meu token do Figma (opcional)</span></summary>
+                    <div class="pl-token-corpo">
+                      <p class="pl-token-necessario" id="figmaTokenNecessario" hidden>O servidor não tem um token do Figma configurado: para buscar pela URL, informe o seu.</p>
+                      <label class="pl-rotulo" for="figmaToken">Seu token do Figma</label>
+                      <div class="pl-linha-busca">
+                        <input type="password" class="pl-input" id="figmaToken" placeholder="figd_…" autocomplete="off" spellcheck="false" aria-describedby="figmaTokenAjuda">
+                        <button type="button" class="pl-btn-link" id="btnFigmaEsquecer" hidden>Esquecer</button>
+                      </div>
+                      <p class="pl-ajuda" id="figmaTokenAjuda">Necessário quando o servidor não tem token ou não tem acesso ao arquivo. Gere em Figma › Settings › Security › Personal access tokens, com o escopo “File content: Read only”; ele expira em no máximo 90 dias. <span id="figmaTokenSalvo" hidden>Salvo só neste navegador.</span></p>
+                    </div>
+                  </details>
+
+                  <div class="pl-msg" id="figmaMsg" role="status" aria-live="polite"></div>
+                  <div class="pl-figma-opcoes" id="figmaOpcoes" hidden></div>
+                </div>
+
+                <div class="pl-msg" id="telasMsg" role="status" aria-live="polite"></div>
+                <ol class="pl-telas" id="listaTelas" aria-label="Telas na ordem da jornada"></ol>
+                <p class="pl-telas-vazio" id="telasVazio">Nenhuma tela ainda. Prefira telas do Figma ou prints sem dados de clientes.</p>
+                <p class="pl-nota" id="notaPartes" hidden></p>
+              </section>
+
+              <!-- 2. Contexto -->
+              <section class="pl-cartao pl-sec" aria-labelledby="secContextoTitulo">
+                <div class="pl-sec-cab">
+                  <span class="pl-sec-num" aria-hidden="true">2</span>
+                  <div class="pl-sec-tit">
+                    <h2 id="secContextoTitulo">Contexto</h2>
+                    <p class="pl-sec-sub">Quanto mais contexto, mais precisa a recomendação.</p>
+                  </div>
+                </div>
+
+                <div class="pl-campo">
+                  <label for="campoPergunta">Pergunta de negócio <span class="pl-obrig" aria-hidden="true">*</span></label>
+                  <textarea class="pl-input" id="campoPergunta" rows="3" maxlength="1000" required aria-required="true" placeholder="O que o time precisa responder com os dados?"></textarea>
+                  <div class="pl-exemplos" id="exemplosPergunta" role="group" aria-label="Exemplos de pergunta (clique para usar)">
+                    <span class="pl-exemplos-rotulo" aria-hidden="true">Exemplos:</span>
+                  </div>
+                </div>
+
+                <div class="pl-campos-2">
+                  <div class="pl-campo">
+                    <label for="campoProduto">Produto <span class="pl-opc">(opcional)</span></label>
+                    <input type="text" class="pl-input" id="campoProduto" maxlength="120" placeholder="Ex.: Cartão de crédito" autocomplete="off">
+                  </div>
+                  <div class="pl-campo">
+                    <label for="campoJornada">Jornada <span class="pl-opc">(opcional)</span></label>
+                    <input type="text" class="pl-input" id="campoJornada" maxlength="120" placeholder="Ex.: Contratação" autocomplete="off">
+                  </div>
+                </div>
+
+                <div class="pl-campo">
+                  <label for="campoTela">Nome da tela <span class="pl-opc">(opcional)</span></label>
+                  <input type="text" class="pl-input" id="campoTela" maxlength="120" placeholder="Ex.: Oferta do cartão" autocomplete="off">
+                </div>
+
+                <fieldset class="pl-fieldset">
+                  <legend>Canal</legend>
+                  <div class="pl-seg">
+                    <label><input type="radio" name="canal" value="Web"><span>Web</span></label>
+                    <label><input type="radio" name="canal" value="WebView"><span>WebView</span></label>
+                    <label><input type="radio" name="canal" value="App nativo"><span>App nativo</span></label>
+                    <label><input type="radio" name="canal" value="" checked><span>Não informado</span></label>
+                  </div>
+                  <p class="pl-ajuda">Na dúvida, deixe “Não informado”: o Tag Planner não deduz o canal (Android pode ser WebView).</p>
+                </fieldset>
+
+                <fieldset class="pl-fieldset">
+                  <legend>Plataforma</legend>
+                  <div class="pl-seg">
+                    <label><input type="radio" name="plataforma" value="Android"><span>Android</span></label>
+                    <label><input type="radio" name="plataforma" value="iOS"><span>iOS</span></label>
+                    <label><input type="radio" name="plataforma" value="Navegador"><span>Navegador</span></label>
+                    <label><input type="radio" name="plataforma" value="" checked><span>Não informado</span></label>
+                  </div>
+                </fieldset>
+
+                <div class="pl-campos-2">
+                  <div class="pl-campo">
+                    <label for="campoTelaAnterior">Tela anterior <span class="pl-opc">(opcional)</span></label>
+                    <input type="text" class="pl-input" id="campoTelaAnterior" maxlength="120" placeholder="Ex.: Home do app" autocomplete="off">
+                  </div>
+                  <div class="pl-campo">
+                    <label for="campoTelaSeguinte">Próxima tela <span class="pl-opc">(opcional)</span></label>
+                    <input type="text" class="pl-input" id="campoTelaSeguinte" maxlength="120" placeholder="Ex.: Dados pessoais" autocomplete="off">
+                  </div>
+                </div>
+
+                <div class="pl-campo">
+                  <label for="campoMapa">Mapa de métricas existente <span class="pl-opc">(opcional)</span></label>
+                  <textarea class="pl-input pl-mono" id="campoMapa" rows="3" maxlength="20000" placeholder="Cole eventos e parâmetros que já existem, se houver" spellcheck="false"></textarea>
+                </div>
+
+                <div class="pl-campo pl-campo-ultimo">
+                  <label for="campoObs">Observações <span class="pl-opc">(opcional)</span></label>
+                  <textarea class="pl-input" id="campoObs" rows="2" maxlength="2000" placeholder="Regras de negócio, restrições, o que já se sabe…"></textarea>
+                </div>
+              </section>
+            </div>
+
+            <div class="pl-envio">
+              <div class="pl-privacidade" role="note">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                <p><strong>Privacidade:</strong> não envie telas com dados reais de clientes (CPF, agência/conta, cartão, telefone, e-mail, nome). Prefira telas do Figma ou prints mascarados.</p>
+              </div>
+              <div class="pl-msg" id="envioMsg" role="alert"></div>
+              <div class="pl-envio-linha">
+                <p class="pl-envio-status" id="envioStatus" aria-live="polite"></p>
+                <button type="button" class="pl-btn pl-btn-pri pl-btn-grande" id="btnAnalisar" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3.5"></circle><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"></path></svg>
+                  Analisar
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ Analisando ============ -->
+        <section class="pl-vista" id="vistaProgresso" aria-labelledby="progTitulo" hidden></section>
+
+        <!-- ============ Erro / interrompida ============ -->
+        <section class="pl-vista" id="vistaErro" hidden></section>
+
+        <!-- ============ Resultado ============ -->
+        <section class="pl-vista" id="vistaResultado" hidden></section>
+      </div>
+    </main>
+  </div>
+
+  <div class="pl-toasts" id="plToasts" aria-live="polite"></div>
+
+  <script>window.TAG_CONFIG = __CONFIG_JSON__;</script>
+  <!-- Ordem importa: nucleo (namespace TA) -> markdown -> api -> sessao ->
+       módulos do planner -> planner (valida a sessão e liga a tela).
+       Sem tagueamento.js: o Tag Planner não tem mapa de GA4 homologado. -->
+  <script src="/static/js/nucleo.js"></script>
+  <script src="/static/js/markdown.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/sessao.js"></script>
+  <script src="/static/js/planner-store.js"></script>
+  <script src="/static/js/planner-imagens.js"></script>
+  <script src="/static/js/planner-marcacao.js"></script>
+  <script src="/static/js/planner.js"></script>
+</body>
+</html>

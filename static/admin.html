@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+__GTM_HEAD__
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel administrativo | __NOME_PLATAFORMA__</title>
+<link rel="icon" href="/static/plataforma-icone.svg">
+<style>
+:root{
+  /* Marca Bradesco — vermelho é a cor primária (sem azul) */
+  --rd:#CC092F; --rd2:#A30726; --rd-vivo:#E11B3C;
+  --rd-wash:#FDECEF; --rd-bd:#F6C9D2;
+  /* Cor de cada ferramenta (gráfico, cartões e chips). Auditor e Planner são
+     dois tons da mesma família vermelha (marca, sem azul): no gráfico eles
+     se separam pela legenda e por um respiro branco de 2px entre as fatias. */
+  --cor-auditor:#CC092F; --cor-planner:#7D0620; --cor-plataforma:#8B909C;
+  /* Tinta / neutros */
+  --ink:#181B22; --ink2:#5A616E; --ink3:#8B909C;
+  --bg:#F4F5F8; --card:#FFFFFF; --bd:#E7E9F0; --bd2:#F0F1F5;
+  /* Status */
+  --ok:#0B7A3E; --ok-wash:#E7F6EE; --ok-bd:#C4E9D3;
+  --alerta:#B26A00; --erro:#C0122E; --erro-wash:#FCE9EC; --erro-bd:#F4C6CF;
+  --sombra:0 1px 2px rgba(24,27,34,.04), 0 12px 30px -20px rgba(24,27,34,.24);
+  --raio:14px;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+/* O JS mostra/esconde as seções pelo atributo hidden; sem o !important o
+   display das classes (grid/flex) venceria o hidden do navegador. */
+[hidden]{display:none !important;}
+body{
+  font-family:"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  background:var(--bg); color:var(--ink); min-height:100vh; display:flex;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;}
+:focus-visible{outline:2px solid var(--rd); outline-offset:2px;}
+/* Texto só para leitor de tela */
+.sr{position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;}
+
+/* ---------------- Sidebar ---------------- */
+.side{
+  width:216px; flex:none; position:sticky; top:0; align-self:flex-start; height:100vh;
+  background:linear-gradient(180deg,#B7082A,#7d0620); color:#fff;
+  display:flex; flex-direction:column; padding:16px 14px 14px;
+}
+/* contorno de foco branco: o vermelho padrão some no fundo da sidebar */
+.side :focus-visible{outline-color:#fff;}
+.brand{display:flex; align-items:center; gap:10px; padding:4px 6px 2px; margin-bottom:20px;}
+.brand .logo{width:34px; height:34px; border-radius:9px; background:#fff; display:grid; place-items:center; overflow:hidden; flex:none;}
+.brand .logo img{width:30px; height:30px; object-fit:contain;}
+.brand .nome{font-weight:800; font-size:15px; line-height:1.15;}
+.brand .nome small{display:block; font-size:10.5px; font-weight:600; color:#ffd0d9;}
+.nav{display:flex; flex-direction:column; gap:2px;}
+.nav a{
+  display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px;
+  color:#ffd7de; font-size:13px; font-weight:600; text-decoration:none; transition:background .15s, color .15s;
+}
+.nav a svg{width:17px; height:17px; stroke:currentColor; flex:none;}
+.nav a:hover{background:rgba(255,255,255,.12); color:#fff;}
+.nav a.on{background:rgba(255,255,255,.17); color:#fff;}
+.side .rotulo-grp{font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:#ffb3c1; padding:0 8px; margin:18px 0 7px;}
+.acoes{display:flex; flex-direction:column; gap:7px;}
+.sb-btn{
+  font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; text-align:left;
+  display:flex; align-items:center; gap:8px; width:100%;
+  padding:9px 12px; border-radius:9px; border:1px solid transparent; transition:.15s;
+}
+.sb-btn.pri{background:#fff; color:var(--rd);}
+.sb-btn.pri:hover{background:#ffe7ec;}
+.sb-btn.gho{background:rgba(255,255,255,.10); color:#fff; border-color:rgba(255,255,255,.24);}
+.sb-btn.gho:hover{background:rgba(255,255,255,.2);}
+.sb-btn:disabled{opacity:.55; cursor:default;}
+.side .espaco{flex:1; min-height:16px;}
+.side .voltar{
+  display:flex; align-items:center; gap:8px; margin-top:12px; padding:9px 11px; border-radius:9px;
+  color:#ffd7de; font-size:12.5px; font-weight:600; text-decoration:none; border-top:1px solid rgba(255,255,255,.15);
+  border-radius:0; padding-top:14px;
+}
+.side .voltar:hover{color:#fff;}
+
+/* ---------------- Área principal ---------------- */
+.main{flex:1; min-width:0; padding:24px 30px 60px;}
+.topbar{display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px 16px; margin-bottom:18px; scroll-margin-top:16px;}
+.topbar h1{font-size:21px; font-weight:800; letter-spacing:-.02em;}
+.topbar .sub{font-size:12.5px; color:var(--ink3); font-weight:600; margin-top:2px;}
+.topbar .selo{
+  margin-left:auto; font-size:12.5px; font-weight:700; color:var(--rd);
+  background:var(--rd-wash); border:1px solid var(--rd-bd); padding:8px 13px; border-radius:9px;
+}
+
+.aviso{
+  background:var(--rd-wash); border:1px solid var(--rd-bd); color:var(--rd2);
+  padding:14px 18px; border-radius:12px; font-size:14px; margin-bottom:16px; font-weight:500;
+}
+.aviso a{color:var(--rd2); font-weight:700;}
+
+/* Recarregando (Atualizar / troca de mês): mantém o quadro anterior esmaecido,
+   sem piscar nem pular o layout */
+.main.carregando .cards, .main.carregando .linha2, .main.carregando .tabela-box{opacity:.55; transition:opacity .2s;}
+
+.sec-tit{
+  display:flex; align-items:center; gap:9px; margin:24px 2px 12px; scroll-margin-top:16px;
+  font-size:12px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:var(--ink3);
+}
+.sec-tit::before{content:""; width:7px; height:7px; border-radius:50%; background:var(--rd);}
+.sec-tit::after{content:""; flex:1; height:1px; background:var(--bd);}
+
+/* Filtros (toolbar no topo: valem para cartões, gráfico, feedbacks e tabela) */
+.filtros{
+  display:flex; flex-wrap:wrap; gap:11px; align-items:end; margin-bottom:14px;
+  background:var(--card); border:1px solid var(--bd); border-radius:var(--raio); padding:13px 15px; box-shadow:var(--sombra);
+}
+.filtros label{font-size:11px; font-weight:800; color:var(--ink3); text-transform:uppercase; letter-spacing:.4px; display:flex; flex-direction:column; gap:5px;}
+.filtros select,.filtros input{
+  font:inherit; font-size:13px; font-weight:500; padding:9px 11px; border:1px solid var(--bd); border-radius:10px;
+  background:var(--bg); color:var(--ink); min-width:150px; transition:border-color .15s, box-shadow .15s;
+}
+.filtros input{min-width:230px;}
+.filtros select:focus,.filtros input:focus{outline:none; border-color:var(--rd); box-shadow:0 0 0 3px var(--rd-wash); background:var(--card);}
+
+/* KPIs — tiles com filete vermelho (assinatura da opção 1). São 11: colunas
+   fixas por faixa de largura (6+5, 4+4+3, 3+3+3+2) para nenhum tile ficar
+   sozinho numa linha, o que o auto-fill fazia em várias larguras. */
+.cards{display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:12px; scroll-margin-top:16px;}
+@media (max-width:1280px){ .cards{grid-template-columns:repeat(4, minmax(0,1fr));} }
+@media (max-width:1100px){ .cards{grid-template-columns:repeat(3, minmax(0,1fr));} }
+.kpi{
+  background:var(--card); border:1px solid var(--bd); border-left:3px solid var(--rd);
+  border-radius:12px; padding:14px 16px; min-width:0; transition:box-shadow .16s, transform .16s;
+}
+/* tile do Tag Planner com o filete vinho = mesma cor da série no gráfico */
+.kpi.planner{border-left-color:var(--cor-planner);}
+.kpi:hover{box-shadow:var(--sombra); transform:translateY(-1px);}
+.kpi .num{font-size:24px; font-weight:800; letter-spacing:-.02em; line-height:1.12; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.kpi .num.bom{color:var(--ok);} .kpi .num.ruim{color:var(--erro);}
+.kpi .num.alerta{color:var(--alerta);} .kpi .num.mudo{color:var(--ink3);}
+.kpi .rotulo{font-size:12px; color:var(--ink2); font-weight:600; margin-top:4px; line-height:1.35;}
+.kpi .rotulo .lin{display:block;}
+
+/* Linha gráfico + feedbacks */
+.linha2{display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); gap:14px; margin-top:16px; scroll-margin-top:16px;}
+.card{background:var(--card); border:1px solid var(--bd); border-radius:var(--raio); padding:15px 18px; box-shadow:var(--sombra); min-width:0;}
+.card-cab{display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; font-size:13.5px; font-weight:700; margin-bottom:10px;}
+.card-cab .card-tit{font-size:13.5px; font-weight:700; color:var(--ink);}
+.card-cab span{font-weight:500; color:var(--ink3); font-size:12px;}
+.card-cab .btn-mini{margin-left:auto; align-self:center;}
+.btn-mini{
+  font:inherit; font-size:12px; font-weight:700; color:var(--rd); cursor:pointer;
+  background:var(--card); border:1px solid var(--rd-bd); border-radius:8px; padding:5px 10px; transition:background .15s;
+}
+.btn-mini:hover{background:var(--rd-wash);}
+
+/* ---- Gráfico "Uso por dia" (barras empilhadas) ---- */
+.grafico-box{position:relative;}
+.legenda{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--ink2); margin:0 0 8px;}
+.legenda .item{display:inline-flex; align-items:center; gap:7px;}
+.legenda .sw{width:10px; height:10px; border-radius:3px; flex:none;}
+.sw.aud, .g-seg.aud, .k.aud{background:var(--cor-auditor);}
+.sw.plan, .g-seg.plan, .k.plan{background:var(--cor-planner);}
+.grafico{display:flex; align-items:stretch; padding-top:4px; overflow-x:auto; overflow-y:hidden; border-radius:6px; outline-offset:4px;}
+/* A coluna inteira (com a sobra lateral) é o alvo do mouse, não só a barra */
+.g-col{flex:1 1 0; min-width:10px; max-width:56px; padding:0 2px; display:flex; flex-direction:column; cursor:default;}
+/* altura fixa da área: a barra recebe a altura em px calculada no JS
+   (proporção exata; o rótulo do topo fica fora da conta) */
+.g-area{height:132px; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:1px solid var(--bd); border-radius:6px 6px 0 0; transition:background .12s;}
+.g-col:hover .g-area, .g-col.ativa .g-area{background:var(--bg);}
+.g-val{font-size:11px; font-weight:700; line-height:14px; margin-bottom:4px; white-space:nowrap; font-variant-numeric:tabular-nums;}
+.g-pilha{width:100%; max-width:22px; display:flex; flex-direction:column; gap:2px; transition:filter .12s;}
+.g-seg{width:100%; flex:none;}
+.g-pilha .g-seg:first-child{border-radius:4px 4px 0 0;}
+.g-col:hover .g-pilha, .g-col.ativa .g-pilha{filter:brightness(1.18);}
+.g-dia{font-size:10.5px; color:var(--ink2); text-align:center; padding-top:6px; min-height:19px; line-height:1.2; white-space:nowrap; font-variant-numeric:tabular-nums;}
+.g-dia.fds{color:var(--ink3);}
+/* Colunas estreitas (mês cheio / celular): só os dias 1, 5, 10... e o valor do
+   pico; o resto fica no tooltip e na tabela */
+.grafico.denso .g-dia:not(.chave), .grafico.denso .g-val:not(.pico){visibility:hidden;}
+.g-vazio{color:var(--ink3); font-size:12.5px; padding:26px 0 30px; text-align:center;}
+.g-tip{
+  position:absolute; z-index:5; pointer-events:none; min-width:168px;
+  background:var(--card); border:1px solid var(--bd); border-radius:10px; padding:9px 12px;
+  box-shadow:0 10px 28px -12px rgba(24,27,34,.38); font-size:12px; color:var(--ink2);
+}
+.g-tip .t-dia{font-weight:700; color:var(--ink); margin-bottom:4px;}
+.g-tip .t-lin{display:flex; align-items:center; gap:7px; line-height:1.65; white-space:nowrap;}
+.g-tip .t-lin b{color:var(--ink); min-width:16px; text-align:right; font-variant-numeric:tabular-nums;}
+.g-tip .k{width:12px; height:3px; border-radius:2px; flex:none;}
+.g-tip .t-total{border-top:1px solid var(--bd2); margin-top:4px; padding-top:4px; padding-left:19px;}
+.g-tabela{max-height:300px; overflow:auto; border:1px solid var(--bd2); border-radius:10px;}
+.tab-grafico{font-size:12.5px;}
+.tab-grafico thead th{padding:8px 12px; position:sticky; top:0; white-space:normal; text-transform:none; letter-spacing:0; font-size:11.5px; color:var(--ink2);}
+.tab-grafico thead .sw{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:baseline;}
+.tab-grafico .cab-serie{white-space:nowrap;}   /* a marca de cor não se separa da palavra */
+.tab-grafico th, .tab-grafico td{text-align:right; font-variant-numeric:tabular-nums;}
+.tab-grafico th:first-child, .tab-grafico td:first-child{text-align:left; white-space:nowrap;}
+.tab-grafico tbody td{padding:7px 12px;}
+.tab-grafico tfoot th, .tab-grafico tfoot td{padding:8px 12px; font-weight:800; border-top:1px solid var(--bd); background:#FBFBFD;}
+
+/* ---- Feedbacks recentes ---- */
+.fb-lista{display:flex; flex-direction:column;}
+.fb-row{display:flex; align-items:center; gap:9px; padding:8px 0; border-top:1px solid var(--bd2); font-size:12.5px; min-width:0;}
+.fb-row:first-child{border-top:0;}
+.fb-pill{flex:none; width:26px; height:22px; border-radius:20px; display:grid; place-items:center; font-size:12px;}
+.fb-pill.like{background:var(--ok-wash);} .fb-pill.dislike{background:var(--erro-wash);}
+.fb-row .who{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; min-width:0;}
+.fb-ferr{flex:none; display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--ink2);}
+.fb-ferr::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--cor-auditor);}
+.fb-ferr.planner::before{background:var(--cor-planner);}
+.fb-row .txt{margin-left:auto; color:var(--ink3); font-size:11.5px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; min-width:0;}
+.fb-vazio{color:var(--ink3); font-size:12.5px; padding:8px 0;}
+
+/* Tabela */
+.tabela-box{background:var(--card); border:1px solid var(--bd); border-radius:var(--raio); overflow:hidden; margin-top:12px; box-shadow:var(--sombra); scroll-margin-top:16px;}
+.tabela-scroll{overflow-x:auto;}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+thead th{
+  text-align:left; padding:11px 16px; background:#FBFBFD; color:var(--ink3);
+  font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px;
+  border-bottom:1px solid var(--bd); white-space:nowrap;
+}
+tbody td{padding:11px 16px; border-bottom:1px solid var(--bd2); vertical-align:top;}
+tbody tr:last-child td{border-bottom:0;}
+tbody tr:hover{background:#FCF7F8;}
+td.quando{white-space:nowrap; color:var(--ink2); font-variant-numeric:tabular-nums;}
+td.quando .hora{color:var(--ink3); font-size:12px;}
+.acao{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; padding:4px 11px; border-radius:999px; border:1px solid var(--bd); background:var(--bg); color:var(--ink2); white-space:nowrap;}
+.acao::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.65;}
+.acao.ok{background:var(--ok-wash); color:var(--ok); border-color:var(--ok-bd);}
+.acao.erro{background:var(--erro-wash); color:var(--erro); border-color:var(--erro-bd);}
+.usuario .nome{font-weight:600; color:var(--ink);}
+.usuario .email{color:var(--ink3); font-size:12px;}
+td.ip{font-variant-numeric:tabular-nums; color:var(--ink2);}
+.det{display:flex; flex-wrap:wrap; gap:6px;}
+.chip{display:inline-flex; align-items:center; gap:5px; background:var(--bg); border:1px solid var(--bd2); border-radius:8px; padding:3px 9px; font-size:11.5px; color:var(--ink2); max-width:100%; min-width:0;}
+.chip b{color:var(--ink); font-weight:600; flex:none;}
+.chip .v{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:360px; min-width:0;}
+.chip.st-ok{background:var(--ok-wash); color:var(--ok); border-color:var(--ok-bd);}
+.chip.st-erro{background:var(--erro-wash); color:var(--erro); border-color:var(--erro-bd);}
+.chip.st-ok b,.chip.st-erro b{color:inherit;}
+.chip.voto{font-weight:700; border:0; padding:3px 10px;}
+.chip.voto.like{background:var(--ok-wash); color:var(--ok);}
+.chip.voto.dislike{background:var(--erro-wash); color:var(--erro);}
+.chip.coment{background:var(--rd-wash); color:var(--rd2); border-color:var(--rd-bd);}
+.chip.coment b{color:inherit;}
+/* ferramenta do evento: bolinha com a cor da ferramenta (igual ao gráfico) */
+.chip.ferr{background:var(--card); border-color:var(--bd); color:var(--ink); font-weight:700;}
+.chip.ferr::before{content:""; width:7px; height:7px; border-radius:50%; background:var(--cor-auditor); flex:none;}
+.chip.ferr.planner::before{background:var(--cor-planner);}
+.chip.ferr.plataforma{color:var(--ink2); font-weight:600;}
+.chip.ferr.plataforma::before{background:var(--cor-plataforma);}
+.chip a{color:var(--rd); text-decoration:none; min-width:0; display:inline-flex;}
+.chip a:hover{text-decoration:underline;}
+#vazio{padding:30px; text-align:center; color:var(--ink3); font-size:13.5px;}
+.rodape-tab{padding:11px 16px; font-size:12px; color:var(--ink3); border-top:1px solid var(--bd); background:#FBFBFD;}
+
+/* Responsivo: sidebar vira faixa no topo */
+@media (max-width:900px){
+  body{flex-direction:column;}
+  .side{width:auto; height:auto; position:static; flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:12px 16px;}
+  .brand{margin-bottom:0;}
+  .nav{flex-direction:row; flex-wrap:wrap;}
+  .side .rotulo-grp{display:none;}
+  .acoes{flex-direction:row; flex-wrap:wrap; margin-left:auto;}
+  .sb-btn{width:auto;}
+  .side .espaco{display:none;}
+  .side .voltar{border-top:0; padding-top:9px; margin-top:0;}
+  .main{padding:18px 16px 40px;}
+}
+@media (max-width:1050px){ .linha2{grid-template-columns:minmax(0,1fr);} }
+@media (max-width:640px){
+  .side{gap:8px 10px;}
+  .nav a{padding:8px 9px;}
+  .acoes{margin-left:0;}
+  .topbar .selo{margin-left:0;}
+  /* filtros em 2 colunas; a busca ocupa a linha toda */
+  .filtros{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px;}
+  .filtros label{min-width:0;}
+  .filtros select,.filtros input{min-width:0; width:100%;}
+  .filtros .f-busca{grid-column:1 / -1;}
+  /* tabela vira lista de cartões (sem rolagem lateral no celular); os roles
+     ARIA no HTML mantêm a semântica de tabela para leitores de tela */
+  .tabela-scroll{overflow-x:visible;}
+  .tab-eventos thead{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0);}
+  .tab-eventos, .tab-eventos tbody{display:block;}
+  .tab-eventos tbody tr{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:7px 10px; padding:12px 14px; border-bottom:1px solid var(--bd2);}
+  .tab-eventos tbody tr:last-child{border-bottom:0;}
+  .tab-eventos tbody td{display:block; padding:0; border:0; min-width:0;}
+  .tab-eventos td.c-acao{grid-column:1; grid-row:1;}
+  .tab-eventos td.quando{grid-column:2; grid-row:1; text-align:right; font-size:12px; align-self:center;}
+  .tab-eventos td.usuario, .tab-eventos td.ip, .tab-eventos td.c-det{grid-column:1 / -1;}
+  .tab-eventos td.ip{font-size:12px;}
+  /* só no cartão do celular: no desktop a coluna se ajusta ao e-mail inteiro */
+  .usuario .email{overflow-wrap:anywhere;}
+  .tab-eventos td.ip::before{content:"IP "; color:var(--ink3); font-weight:700; font-size:11px;}
+  .chip .v{max-width:100%;}
+  .fb-row .who{max-width:96px;}
+}
+@media (max-width:560px){
+  .cards{grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px;}
+  /* número ímpar de tiles: o último ocupa a linha inteira */
+  .cards .kpi:last-child:nth-child(odd){grid-column:1 / -1;}
+  .kpi{padding:12px;}
+  .kpi .num{font-size:20px;}
+}
+@media (max-width:480px){
+  .card{padding:14px;}
+  .g-col{min-width:7px; padding:0 1px;}
+  .tab-grafico thead th, .tab-grafico tbody td, .tab-grafico tfoot th, .tab-grafico tfoot td{padding-left:8px; padding-right:8px;}
+}
+/* Quem pede menos movimento no sistema não vê os tiles "pularem" */
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;}
+  .kpi:hover{transform:none;}
+}
+/* Alto contraste do Windows: as barras e marcas de cor são fundo (background),
+   que o modo de cores forçadas apagaria — mantém as cores das ferramentas */
+@media (forced-colors: active){
+  .g-seg, .sw, .k, .chip.ferr::before, .fb-ferr::before{forced-color-adjust:none;}
+}
+</style>
+</head>
+<body>
+__GTM_BODY__
+  <aside class="side">
+    <div class="brand">
+      <span class="logo"><img src="/static/plataforma-icone.svg" alt=""></span>
+      <span class="nome">__NOME_PLATAFORMA__<small>Painel admin</small></span>
+    </div>
+    <nav class="nav" aria-label="Seções do painel">
+      <a class="on" href="#topo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12h-4l-2.5 6.5-5-13L7 12H3"/></svg> Visão geral</a>
+      <a href="#graficoBox">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V4"/><path d="M4 20h16"/><rect x="7" y="12" width="3" height="5"/><rect x="12" y="8" width="3" height="9"/><rect x="17" y="5" width="3" height="12"/></svg> Gráfico</a>
+      <a href="#secAtividade">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg> Atividade</a>
+    </nav>
+    <div class="rotulo-grp">Ações</div>
+    <div class="acoes">
+      <button id="btnAtualizar" type="button" class="sb-btn pri"><span aria-hidden="true">&#8635;</span> Atualizar</button>
+      <button id="btnExportar" type="button" class="sb-btn gho"
+              title="Baixa os eventos do mês selecionado em CSV (abre no Excel)"><span aria-hidden="true">&#8681;</span> Exportar CSV</button>
+      <button id="btnBackup" type="button" class="sb-btn gho"
+              title="Baixa o projeto completo (código + prompts + documentação) para instalar em outro PC"><span aria-hidden="true">&#8681;</span> Baixar projeto (.zip)</button>
+    </div>
+    <div class="espaco"></div>
+    <a class="voltar" href="/"><span aria-hidden="true">&#8592;</span> Voltar à plataforma</a>
+  </aside>
+
+  <main class="main" id="principal">
+    <div class="topbar" id="topo">
+      <div>
+        <h1>Visão geral</h1>
+        <div class="sub">Tag Auditor e Tag Planner · atividade por usuário · trilha de auditoria</div>
+      </div>
+      <span class="selo">Bradesco · __NOME_PLATAFORMA__</span>
+    </div>
+
+    <div id="aviso" class="aviso" role="status" hidden></div>
+
+    <section class="filtros" id="filtros" aria-label="Filtros (valem para os cartões, o gráfico, os feedbacks e a tabela)" hidden>
+      <label>Mês <select id="selMes"></select></label>
+      <label>Ferramenta
+        <select id="selFerramenta">
+          <option value="">Todas</option>
+          <option value="auditor">Tag Auditor</option>
+          <option value="planner">Tag Planner</option>
+          <option value="plataforma">Plataforma</option>
+        </select>
+      </label>
+      <label>Usuário <select id="selEmail"><option value="">Todos</option></select></label>
+      <label>Ação <select id="selAcao"><option value="">Todas</option></select></label>
+      <label class="f-busca">Busca <input id="busca" type="search" autocomplete="off" placeholder="sessão, arquivo, erro, IP..."></label>
+    </section>
+
+    <section class="cards" id="cards" aria-label="Indicadores do filtro atual" hidden>
+      <div class="kpi"><div class="num" id="cAuditorias">0</div><div class="rotulo">Auditorias</div></div>
+      <div class="kpi planner" id="kAnalises"><div class="num" id="cAnalises">0</div><div class="rotulo">Análises (Tag Planner)</div></div>
+      <div class="kpi" id="kSatisfacao"><div class="num" id="cSatisfacao">—</div><div class="rotulo" id="rSatisfacao">Satisfação (👍/👎)</div></div>
+      <div class="kpi" id="kTempo"><div class="num" id="cTempo">—</div><div class="rotulo" id="rTempo">Tempo economizado</div></div>
+      <div class="kpi"><div class="num" id="cErros">0</div><div class="rotulo">Erros</div></div>
+      <div class="kpi"><div class="num" id="cUsuarios">0</div><div class="rotulo">Usuários únicos</div></div>
+      <div class="kpi"><div class="num" id="cLogins">0</div><div class="rotulo">Logins</div></div>
+      <div class="kpi" id="kTokensEntrada"><div class="num" id="cTokensEntrada">0</div><div class="rotulo">Tokens de entrada</div></div>
+      <div class="kpi" id="kTokensSaida"><div class="num" id="cTokensSaida">0</div><div class="rotulo">Tokens de saída</div></div>
+      <div class="kpi" id="kCusto"><div class="num" id="cCusto">—</div><div class="rotulo" id="rCusto">Custo estimado</div></div>
+      <div class="kpi"><div class="num" id="cEventos">0</div><div class="rotulo">Eventos no filtro</div></div>
+    </section>
+
+    <div class="linha2">
+      <section class="card grafico-box" id="graficoBox" aria-labelledby="graficoTitulo" hidden>
+        <div class="card-cab">
+          <h2 class="card-tit" id="graficoTitulo">Uso por dia</h2>
+          <span id="graficoInfo"></span>
+          <button type="button" class="btn-mini" id="btnTabelaGrafico" aria-controls="grafico graficoTabela" hidden>Ver tabela</button>
+        </div>
+        <div class="legenda" id="graficoLegenda"></div>
+        <div class="grafico" id="grafico" tabindex="0" role="group"
+             aria-label="Uso por dia: auditorias e análises do Tag Planner. Use as setas para ler cada dia."></div>
+        <div class="g-vazio" id="graficoVazio" hidden>Sem auditorias nem análises do Tag Planner com esses filtros.</div>
+        <div class="g-tabela" id="graficoTabela" hidden></div>
+        <div class="g-tip" id="graficoTip" aria-hidden="true" hidden></div>
+        <div class="sr" id="graficoLeitor" aria-live="polite"></div>
+      </section>
+      <section class="card" id="feedbacksBox" aria-labelledby="feedbacksTitulo" hidden>
+        <div class="card-cab"><h2 class="card-tit" id="feedbacksTitulo">Feedbacks recentes</h2></div>
+        <div id="feedbacksLista" class="fb-lista"></div>
+      </section>
+    </div>
+
+    <h2 class="sec-tit" id="secAtividade" hidden>Atividade</h2>
+    <section class="tabela-box" id="tabelaBox" hidden>
+      <div class="tabela-scroll">
+        <table class="tab-eventos" role="table">
+          <caption class="sr">Eventos da trilha de auditoria no filtro atual (mais recentes primeiro)</caption>
+          <thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Quando</th><th role="columnheader" scope="col">Ação</th><th role="columnheader" scope="col">Usuário</th><th role="columnheader" scope="col">IP</th><th role="columnheader" scope="col">Detalhes</th></tr></thead>
+          <tbody id="corpoTab" role="rowgroup"></tbody>
+        </table>
+      </div>
+      <div id="vazio" hidden>Nenhum evento com esses filtros.</div>
+      <div class="rodape-tab" id="rodapeTab"></div>
+    </section>
+  </main>
+  <script>window.TAG_CONFIG = __CONFIG_JSON__;</script>
+  <script src="/static/js/admin.js"></script>
+</body>
+</html>

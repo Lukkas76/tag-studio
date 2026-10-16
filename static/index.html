@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+__GTM_HEAD__
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__NOME_PLATAFORMA__</title>
+<link rel="icon" href="/static/plataforma-icone.svg">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/hub.css">
+<script>
+  /* Com sessão salva, esconde o login até o servidor confirmar o token (o
+     login.js tira a classe): quem já está logado vai direto para a Home ou
+     para a ferramenta, sem a tela de login "piscar" antes. */
+  try { if (localStorage.getItem('tag_auditor_token')) document.documentElement.classList.add('validando'); } catch (e) {}
+</script>
+</head>
+<body>
+__GTM_BODY__
+  <!-- Tela de Login (única para todas as ferramentas da plataforma) -->
+  <div id="telaLogin" class="tela-login">
+    <div class="login-box">
+      <img class="login-logo" src="/static/plataforma-icone.svg" alt="">
+      <h1>__NOME_PLATAFORMA__</h1>
+      <div class="login-chip">Bradesco IA Gen</div>
+      <div class="login-produtos">Tag Auditor <span class="sep" aria-hidden="true">&middot;</span> Tag Planner</div>
+      <div class="login-passos">
+        <div class="passo"><span class="passo-num">1</span> Gere seu código de acesso:</div>
+        <button type="button" id="btnAuthGoogle" class="btn-auth-google">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Autenticar no Google
+        </button>
+        <div id="areaDevice" style="display:none;">
+          <div class="passo"><span class="passo-num">2</span> Digite este código na página do Google:</div>
+          <div class="codigo-device" id="codigoDevice"></div>
+          <div class="linha-device">
+            <button type="button" id="btnCopiarCodigo" class="btn-mini">&#x29C9; Copiar código</button>
+            <a id="linkDevice" class="btn-mini" href="https://www.google.com/device" target="_blank" rel="noopener">Abrir página do Google</a>
+          </div>
+          <div class="status-device" id="statusDevice"></div>
+        </div>
+      </div>
+      <p class="login-dica">O código já vai copiado, cole na aba do Google, autorize e pronto: você entra sozinho.</p>
+      <p id="msgErroLogin" class="erro-login"></p>
+       <div class="login-rodape">
+        <div class="rodape-label">&#128737;&#65039; Ambiente seguro &middot; Desenvolvido por</div>
+        <div class="rodape-equipe">COE Plataforma de Canais Digitais</div>
+        <div class="rodape-contatos text-center">
+          <a href="mailto:daniel.n.santos@bradesco.com.br" title="daniel.n.santos@bradesco.com.br"><span class="ico">&#9993;</span> daniel.n.santos@bradesco.com.br</a>
+          <a href="mailto:lucas.moreira@bradesco.com.br" title="lucas.moreira@bradesco.com.br"><span class="ico">&#9993;</span> lucas.moreira@bradesco.com.br</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Home da plataforma (oculta até a sessão ser confirmada: hub.js).
+       Rola sozinha: o body tem overflow:hidden por causa do layout do chat. -->
+  <div id="telaHub" class="tela-hub" hidden>
+    <header class="hub-topo">
+      <div class="hub-topo-interno">
+        <div class="hub-marca">
+          <img src="/static/plataforma-icone.svg" alt="">
+          <span class="hub-marca-nome">__NOME_PLATAFORMA__<span class="hub-marca-sub">Bradesco IA Gen</span></span>
+        </div>
+        <div class="usuario-area" id="usuarioArea">
+          <button class="btn-usuario" id="btnUsuario" aria-label="Conta Google" title="Conta Google">
+            <img id="fotoUsuario" alt="Foto do usuário" referrerpolicy="no-referrer">
+          </button>
+          <div class="menu-usuario" id="menuUsuario">
+            <img class="menu-foto" id="menuFoto" alt="" referrerpolicy="no-referrer">
+            <div class="menu-nome" id="menuNome"></div>
+            <div class="menu-email" id="menuEmail"></div>
+            <a class="btn-admin" id="btnInicio" href="/">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path></svg>
+              Início da plataforma
+            </a>
+            <a class="btn-admin" id="btnAdmin" href="/admin" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+              Painel administrativo
+            </a>
+            <button class="btn-sair" id="btnSair">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              Sair
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="hub-conteudo">
+      <section class="hub-hero">
+        <h1 class="hub-titulo" id="hubTitulo" tabindex="-1">
+          <span id="hubSaudacao">Olá.</span>
+          <span class="hub-titulo-sub">Escolha uma ferramenta para começar.</span>
+        </h1>
+        <p class="hub-intro">Ferramentas de IA do COE Plataforma de Canais Digitais para planejar e auditar o tagueamento GA4 dos produtos digitais do Bradesco.</p>
+      </section>
+
+      <section class="hub-ferramentas" aria-label="Ferramentas">
+        <a class="hub-card" href="/auditor" id="cardAuditor">
+          <div class="hub-card-cab">
+            <span class="hub-card-icone"><img src="/static/logo-tag-auditor.png" alt=""></span>
+            <div class="hub-card-ident">
+              <h2 class="hub-card-nome">Tag Auditor</h2>
+              <span class="hub-tag">Auditoria</span>
+            </div>
+          </div>
+          <p class="hub-card-desc">Audite o plano de tagueamento contra o padrão Bradesco antes de implementar.</p>
+          <dl class="hub-card-io">
+            <div><dt>Você envia</dt><dd>Plano (.json) ou URL do Confluence + canal (Web, WebView ou App nativo)</dd></div>
+            <div><dt>Você recebe</dt><dd>Tabela de ajustes por evento, com os limites técnicos do GA4 conferidos automaticamente</dd></div>
+          </dl>
+          <span class="hub-card-cta">Abrir Tag Auditor <span class="hub-seta" aria-hidden="true">&rarr;</span></span>
+        </a>
+
+        <a class="hub-card" href="/planner" id="cardPlanner">
+          <div class="hub-card-cab">
+            <span class="hub-card-icone hub-card-icone-planner" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+            </span>
+            <div class="hub-card-ident">
+              <h2 class="hub-card-nome">Tag Planner <span class="hub-badge">Novo</span></h2>
+              <span class="hub-tag">Planejamento</span>
+            </div>
+          </div>
+          <p class="hub-card-desc">Descubra o que taguear a partir da tela e da pergunta de negócio.</p>
+          <dl class="hub-card-io">
+            <div><dt>Você envia</dt><dd>Prints da tela ou URL do Figma + a pergunta de negócio</dd></div>
+            <div><dt>Você recebe</dt><dd>KPI com numerador e denominador, o que é obrigatório, opcional ou descartável, plano mínimo de eventos, taxonomia sugerida e a tela marcada</dd></div>
+          </dl>
+          <span class="hub-card-cta">Abrir Tag Planner <span class="hub-seta" aria-hidden="true">&rarr;</span></span>
+        </a>
+      </section>
+
+      <section class="hub-secao" aria-labelledby="tituloFluxo">
+        <h2 class="hub-secao-titulo" id="tituloFluxo">Como as ferramentas se conectam</h2>
+        <ol class="hub-passos" role="list">
+          <li class="hub-passo">
+            <span class="hub-passo-num" aria-hidden="true">1</span>
+            <div class="hub-passo-corpo">
+              <div class="hub-passo-cab"><h3 class="hub-passo-verbo">Planeje</h3><span class="hub-passo-onde">Tag Planner</span></div>
+              <p>Defina o KPI e o conjunto mínimo de eventos a partir da tela.</p>
+            </div>
+          </li>
+          <li class="hub-passo hub-passo-doc">
+            <span class="hub-passo-num" aria-hidden="true">2</span>
+            <div class="hub-passo-corpo">
+              <div class="hub-passo-cab"><h3 class="hub-passo-verbo">Documente</h3><span class="hub-passo-onde">Mapa de tagueamento</span></div>
+              <p>Registre o mapa no Confluence com a taxonomia oficial.</p>
+            </div>
+          </li>
+          <li class="hub-passo">
+            <span class="hub-passo-num" aria-hidden="true">3</span>
+            <div class="hub-passo-corpo">
+              <div class="hub-passo-cab"><h3 class="hub-passo-verbo">Audite</h3><span class="hub-passo-onde">Tag Auditor</span></div>
+              <p>Valide o mapa contra o padrão antes de implementar e homologar.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <div class="hub-paineis">
+        <section class="hub-painel" id="painelUso" aria-labelledby="tituloUso">
+          <h2 class="hub-painel-titulo" id="tituloUso" tabindex="-1">Seu uso em <span id="usoMes"></span></h2>
+          <dl class="hub-stats" id="usoStats">
+            <div class="hub-stat"><dt>Auditorias</dt><dd id="usoAuditorias"></dd></div>
+            <div class="hub-stat"><dt>Análises no Planner</dt><dd id="usoAnalises"></dd></div>
+            <div class="hub-stat hub-stat-ultima"><dt>Última atividade</dt><dd id="usoUltima"></dd></div>
+          </dl>
+          <p class="hub-uso-nota" id="usoPlataforma"></p>
+          <div class="hub-uso-erro" id="usoErro" hidden>
+            <span>Não foi possível carregar agora.</span>
+            <button type="button" class="hub-btn-tentar" id="usoTentar">Tentar de novo</button>
+          </div>
+          <p class="hub-sr" id="usoAnuncio" role="status"></p>
+        </section>
+
+        <section class="hub-painel" aria-labelledby="tituloPraticas">
+          <h2 class="hub-painel-titulo" id="tituloPraticas">Boas práticas</h2>
+          <ul class="hub-praticas" role="list">
+            <li>
+              <span class="hub-pratica-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6L12 3z"/><path d="m9 12 2 2 4-4"/></svg></span>
+              <span>Nada de dados reais de clientes nas telas: prefira o Figma ou prints mascarados (CPF, agência e conta, cartão, telefone, e-mail, nome).</span>
+            </li>
+            <li>
+              <span class="hub-pratica-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="14" height="10" rx="1.5"/><path d="M6 18h6M9 14v4"/><rect x="17" y="8" width="5" height="12" rx="1.2"/></svg></span>
+              <span>Informe o canal — Web, WebView ou App nativo: a taxonomia muda.</span>
+            </li>
+            <li>
+              <span class="hub-pratica-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="m16 11 2 2 4-4"/></svg></span>
+              <span>A IA sugere; a decisão final e a homologação são do time. Achou um erro? Use o &#128078; e conte o motivo.</span>
+            </li>
+          </ul>
+        </section>
+      </div>
+
+      <!-- Só para administradores (EMAILS_ADMIN): hub.js mostra -->
+      <section class="hub-admin" id="hubAdmin" aria-label="Administração da plataforma" hidden>
+        <span class="hub-admin-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg></span>
+        <p class="hub-admin-texto"><strong>Painel administrativo</strong> — uso, satisfação, custos e logs de todas as ferramentas.</p>
+        <a class="hub-admin-link" href="/admin">Abrir painel <span aria-hidden="true">&rarr;</span></a>
+      </section>
+    </main>
+
+    <footer class="hub-rodape">
+      <p>Desenvolvido por <strong>COE Plataforma de Canais Digitais</strong></p>
+      <div class="hub-contatos">
+        <a href="mailto:daniel.n.santos@bradesco.com.br" title="daniel.n.santos@bradesco.com.br"><span class="ico" aria-hidden="true">&#9993;</span> daniel.n.santos@bradesco.com.br</a>
+        <a href="mailto:lucas.moreira@bradesco.com.br" title="lucas.moreira@bradesco.com.br"><span class="ico" aria-hidden="true">&#9993;</span> lucas.moreira@bradesco.com.br</a>
+      </div>
+    </footer>
+  </div>
+
+  <script>window.TAG_CONFIG = __CONFIG_JSON__;</script>
+  <!-- Ordem importa: nucleo (namespace TA) -> api -> sessao -> hub -> login
+       (o login.js é quem decide no load: Home, volta para a ferramenta que
+       pediu o login ou tela de login). Sem tagueamento.js aqui: a Home não
+       tem mapa GA4 homologado, só carrega o container do GTM. -->
+  <script src="/static/js/nucleo.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/sessao.js"></script>
+  <script src="/static/js/hub.js"></script>
+  <script src="/static/js/login.js"></script>
+</body>
+</html>

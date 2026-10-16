@@ -1,0 +1,34 @@
+# Credenciais (modelo em branco: tagauditor/segredos_exemplo.py)
+tagauditor/segredos.py
+
+# Dados de uso: e-mails, IPs e atividade das pessoas
+logs/
+logs_teste_console/
+registro.txt
+
+# Material de credencial do token LEAP (Bradesco)
+referencia_token/
+gerar_token_leap.py
+teste_token_tag_auditor.py
+
+# Planos de tagueamento reais usados como exemplo
+Erro Portugues (1).json
+Mapa_Confluence_Sem_Imagens_*.json
+SINV - CVM 210 - Enviar Investimentos - Bloco com Erro.json
+Termos de Adesão - Parametros antigos.json
+
+# Python / sistema
+__pycache__/
+*.pyc
+*.zip
+.claude/
+Thumbs.db
+desktop.ini
+
+# Arquivos temporarios do Office
+~$*
+
+# Material interno do Bradesco (o app precisa da documentacao em runtime:
+# copie o arquivo junto com o projeto na maquina que serve o app)
+documentacao_base_bradesco.md
+tagueamento.pdf
