@@ -112,57 +112,9 @@
   transform:translateX(3px); color:#fff; background:var(--vermelho);
 }
 
-/* ---- Seu uso no mês: uma faixa de números ---- */
-.hub-painel{
-  position:relative; margin-top:28px; padding:20px 22px; border-radius:16px;
-  background:var(--cartao); border:1px solid var(--borda); box-shadow:0 1px 2px rgba(16,24,52,.04);
-}
-.hub-painel-titulo{font-size:12px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--tinta-suave); margin-bottom:14px;}
-.hub-painel-titulo:focus{outline:none;}
-.hub-uso{display:flex; align-items:stretch; gap:20px 28px; flex-wrap:wrap;}
-.hub-stats{flex:1 1 420px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr));}
-.hub-stat{min-width:0; padding:2px 20px; border-left:1px solid var(--borda-suave);}
-.hub-stat:first-child{padding-left:0; border-left:0;}
-.hub-stat dt{font-size:12.5px; font-weight:600; line-height:1.3; color:var(--tinta-suave);}
-.hub-stat dd{
-  margin-top:6px; min-height:31px;
-  font-size:28px; font-weight:800; letter-spacing:-.02em; line-height:1.1; color:var(--tinta);
-  font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-/* data e hora não cabem no tamanho dos números */
-.hub-stat-ultima dd{font-size:16px; letter-spacing:0; line-height:1.3; padding-top:8px;}
-.hub-uso-nota{
-  flex:1 1 220px; align-self:center; min-height:20px;
-  padding:12px 14px; border-radius:12px; background:var(--fundo);
-  font-size:12.5px; line-height:1.5; color:var(--tinta-suave);
-}
-
-/* carregando: barras "pulsando" no lugar dos números */
-.hub-esqueleto{
-  display:inline-block; vertical-align:middle; width:2.2em; max-width:100%; height:.85em; border-radius:6px;
-  background:linear-gradient(90deg,#ECEEF3 25%,#F7F8FA 50%,#ECEEF3 75%); background-size:200% 100%;
-  animation:hub-brilho 1.2s linear infinite;
-}
-.hub-esqueleto-largo{width:7em; height:1em;}
-.hub-esqueleto-linha{width:78%; height:12px;}
-@keyframes hub-brilho{from{background-position:200% 0;} to{background-position:-200% 0;}}
-
-.hub-uso-erro{
-  display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; padding:14px 16px; border-radius:12px;
-  background:#FFF5F6; border:1px solid #F3C4CD; border-left:3px solid var(--vermelho);
-  color:#8E1230; font-size:13.5px; font-weight:600;
-}
-.hub-btn-tentar{
-  font:inherit; font-size:12.5px; font-weight:700; cursor:pointer;
-  color:var(--vermelho); background:var(--cartao); border:1px solid #F3C4CD; border-radius:8px; padding:6px 12px;
-  transition:background .12s;
-}
-.hub-btn-tentar:hover{background:var(--vermelho-claro);}
-.hub-btn-tentar:focus-visible{outline:2px solid var(--vermelho); outline-offset:2px;}
-
 /* ---- Lembrete (uma linha, discreto) ---- */
 .hub-lembrete{
-  display:flex; align-items:flex-start; gap:10px; margin-top:18px; padding:0 4px;
+  display:flex; align-items:flex-start; gap:10px; margin-top:22px; padding:0 4px;
   font-size:12.5px; line-height:1.5; color:var(--tinta-suave);
 }
 .hub-lembrete svg{width:16px; height:16px; flex:none; margin-top:1px; color:var(--vermelho);}
@@ -196,18 +148,10 @@
   .hub-card{padding:18px 16px; gap:14px;}
   .hub-card-icone{width:48px; height:48px; border-radius:13px;}
   .hub-card-seta{display:none;}
-  .hub-painel{padding:18px 16px;}
   .hub-rodape{padding:18px 16px 20px;}
-}
-@media (max-width:520px){
-  .hub-stats{grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:14px;}
-  .hub-stat:nth-child(3){grid-column:1 / -1; padding-left:0; border-left:0; padding-top:12px; border-top:1px solid var(--borda-suave);}
-  .hub-stat dd{font-size:24px;}
-  .hub-stat-ultima dd{font-size:15px;}
 }
 @media (prefers-reduced-motion: reduce){
   .tela-hub{animation:none;}
   .hub-card, .hub-card-seta{transition:none;}
   .hub-card:hover, .hub-card:focus-visible, .hub-card:active, .hub-card:hover .hub-card-seta{transform:none;}
-  .hub-esqueleto{animation:none;}
 }

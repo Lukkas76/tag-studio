@@ -10,7 +10,7 @@
      #eventos  trilha de eventos com filtros e paginação
 
    Os números de todas as visões saem da mesma apuração (agregar), com as
-   mesmas regras da Home (/api/resumo): auditoria concluída = status ≠ erro;
+   mesmas regras do /api/resumo: auditoria concluída = status ≠ erro;
    análise = planner_analise ok no modo "analise". Gráficos sem bibliotecas
    (a rede do banco não garante CDN): HTML/SVG desenhados aqui. */
 (function(){
