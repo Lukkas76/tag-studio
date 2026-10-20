@@ -15,6 +15,10 @@
    O Azure aceita no máximo 10 imagens por requisição (maxPartes): quando a
    soma das partes passa disso, as telas com mais partes perdem partes (cada
    parte fica mais alta) até caber. Isso nunca bloqueia a pessoa.
+   Com identificarImagens, cada imagem enviada ganha no topo uma faixa escura
+   "IMAGEM 2 · PARTE 1 DE 3": o modelo lê o número na própria imagem e erra
+   menos a numeração da marcação. A altura dela vai em `faixa` (px) e a
+   marcação (planner-marcacao.js) desconta a faixa das coordenadas.
 
    As contas são funções puras (testáveis no node, sem navegador):
    escalaGuardada, partesDesejadas, planejarPartes, distribuirOrcamento,
@@ -34,7 +38,8 @@
     qualidadeJpeg: 0.85,
     limiarDivisao: 2.4,
     proporcaoParte: 1.8,
-    maxPartesPorTela: 6
+    maxPartesPorTela: 6,
+    identificarImagens: false
   };
 
   // Versão guardada/exibida (ver cabeçalho)
@@ -160,6 +165,25 @@
   function tamanhoEnvio(w, h, ladoMax){
     var e = Math.min(1, ladoMax / Math.max(w, h));
     return { largura: Math.max(1, Math.round(w * e)), altura: Math.max(1, Math.round(h * e)) };
+  }
+
+  // Altura (px) da faixa de identificação para uma imagem de `largura` px:
+  // legível depois que o modelo reduz a imagem, sem roubar muito da tela.
+  function alturaFaixa(largura){
+    return Math.max(28, Math.min(72, Math.round(largura * 0.045)));
+  }
+  // Tela + faixa cabem juntas em ladoMax: se a soma passar, a tela encolhe.
+  function tamanhoComFaixa(w, h, ladoMax){
+    var tam = tamanhoEnvio(w, h, ladoMax);
+    var faixa = alturaFaixa(tam.largura);
+    if (tam.altura + faixa > ladoMax){
+      tam = tamanhoEnvio(w, h, ladoMax - faixa);
+      faixa = alturaFaixa(tam.largura);
+    }
+    return { largura: tam.largura, altura: tam.altura, faixa: faixa };
+  }
+  function textoFaixa(indice, parte, total){
+    return 'IMAGEM ' + indice + (total > 1 ? ' · PARTE ' + parte + ' DE ' + total : '');
   }
 
   // Plano completo de uma análise: partes de cada tela já com o orçamento
@@ -323,7 +347,8 @@
                              alturaOriginal: h, semImagem: true });
   }
 
-  function gerarPartesTela(tela, partesPlano, c, qualidade){
+  // indice = número da tela na análise (1..N), para a faixa de identificação
+  function gerarPartesTela(tela, partesPlano, c, qualidade, indice){
     if (!partesPlano.length) return Promise.resolve([]);   // tela "só camadas"
     return carregarImagem(tela.dataUrl).then(function(img){
       // Em uso normal a imagem tem exatamente largura x altura da tela; o
@@ -331,18 +356,32 @@
       var fx = (img.naturalWidth || tela.largura) / tela.largura;
       var fy = (img.naturalHeight || tela.altura) / tela.altura;
       return partesPlano.map(function(p){
-        var tam = tamanhoEnvio(tela.largura, p.altura, c.ladoMaxEnvio);
-        var cv = novoCanvas(tam.largura, tam.altura);
+        var tam = c.identificarImagens
+          ? tamanhoComFaixa(tela.largura, p.altura, c.ladoMaxEnvio)
+          : tamanhoEnvio(tela.largura, p.altura, c.ladoMaxEnvio);
+        var faixa = tam.faixa || 0;
+        var cv = novoCanvas(tam.largura, tam.altura + faixa);
+        if (faixa){
+          cv.ctx.fillStyle = '#16191F';
+          cv.ctx.fillRect(0, 0, tam.largura, faixa);
+          cv.ctx.fillStyle = '#FFFFFF';
+          cv.ctx.font = '700 ' + Math.round(faixa * 0.5) + 'px "Segoe UI", Arial, sans-serif';
+          cv.ctx.textBaseline = 'middle';
+          cv.ctx.fillText(textoFaixa(indice, p.parte, partesPlano.length),
+                          Math.round(faixa * 0.4), Math.round(faixa / 2), tam.largura - faixa * 0.8);
+        }
         cv.ctx.drawImage(img, 0, p.y * fy, tela.largura * fx, p.altura * fy,
-                         0, 0, tam.largura, tam.altura);
+                         0, faixa, tam.largura, tam.altura);
         var url = cv.canvas.toDataURL('image/jpeg', qualidade);
         liberar(cv.canvas);
         if (url.indexOf('data:image/jpeg') !== 0){
           throw new Error('O navegador não conseguiu preparar a tela "' + (tela.nome || '') + '".');
         }
+        // largura/altura = a imagem enviada inteira (com a faixa): são as
+        // dimensões que o modelo vê e em que devolve as coordenadas
         return {
           parte: p.parte, mime: 'image/jpeg', base64: url.slice(url.indexOf(',') + 1),
-          largura: tam.largura, altura: tam.altura,
+          largura: tam.largura, altura: tam.altura + faixa, faixa: faixa,
           recorte: { y: p.recorte.y, altura: p.recorte.altura }
         };
       });
@@ -357,7 +396,7 @@
     var cadeia = Promise.resolve();
     telas.forEach(function(t, i){
       cadeia = cadeia.then(function(){
-        return gerarPartesTela(t, plano.planos[i], c, qualidade);
+        return gerarPartesTela(t, plano.planos[i], c, qualidade, i + 1);
       }).then(function(partes){
         partes.forEach(function(p){ bytes += p.base64.length; });
         saida[i] = { partes: partes };
@@ -411,6 +450,8 @@
     planejarPartes: planejarPartes,
     distribuirOrcamento: distribuirOrcamento,
     tamanhoEnvio: tamanhoEnvio,
+    tamanhoComFaixa: tamanhoComFaixa,
+    textoFaixa: textoFaixa,
     planejarEnvio: planejarEnvio,
     formatarMb: formatarMb,
     // navegador

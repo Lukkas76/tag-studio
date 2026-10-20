@@ -37,6 +37,7 @@ import threading
 import time
 import unicodedata
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 
 from . import atividade
 from . import bridge
@@ -46,6 +47,8 @@ from .config import (
     PLANNER_DETALHE_IMAGEM, PLANNER_MAX_TELAS, PLANNER_MAX_PARTES,
     PLANNER_MAX_MB_IMAGENS, PLANNER_LADO_MAX_ENVIO,
     PLANNER_SEM_IMAGEM_SE_RECUSAR, FIGMA_MAX_FRAMES,
+    PLANNER_IDENTIFICAR_IMAGENS, PLANNER_MARCACAO_POR_IMAGEM, PLANNER_MARCACAO_REFAZER,
+    PLANNER_MARCACAO_PARALELAS, PLANNER_MARCACAO_REASONING_EFFORT, PLANNER_MARCACAO_MAX_TOKENS,
 )
 
 # O módulo do Figma fala com uma API externa (rede, proxy, cotas). Se ele não
@@ -78,6 +81,7 @@ MAX_MSGS_HISTORICO_PLANNER = 30
 MAX_CHARS_HISTORICO = 400000  # ~100 mil tokens de histórico, no máximo
 MAX_CHARS_MSG_HISTORICO = 200000
 MAX_ELEMENTOS_MARCACAO = 200
+MAX_CHARS_ANALISE_MARCACAO = 30000   # texto da análise mandado à marcação de cada tela
 
 MIMES_ACEITOS = ("image/jpeg", "image/png", "image/webp", "image/gif")
 _ALIAS_MIME = {"image/jpg": "image/jpeg", "image/pjpeg": "image/jpeg",
@@ -113,7 +117,7 @@ Estas instruções complementam as regras acima; não as substituem.
 
 1. Marcação visual: quem desenha a marcação é a FERRAMENTA (retângulo vermelho nos OBRIGATÓRIOS, amarelo nos OPCIONAIS/DIAGNÓSTICOS, numeração T1, T2..., legenda curta e PNG anotado para download), a partir das coordenadas que você devolver no bloco `marcacao` descrito no item 5. Na seção "Marcação visual" da resposta, escreva apenas que a imagem marcada é gerada pela ferramenta a partir dessas coordenadas; não diga que não é possível editar a imagem e não repita o JSON nessa seção.
 
-2. Imagens: chegam numeradas ("Imagem 1", "Imagem 2"...) na ordem da jornada informada pelo usuário. Na coluna "Tela" das tabelas, use o número e o nome da imagem. Telas muito altas chegam divididas em partes ("Imagem 2 — parte 1 de 3"): são recortes verticais consecutivos, com pequena sobreposição, da MESMA tela; um elemento que aparece na sobreposição é um elemento só.
+2. Imagens: chegam numeradas ("Imagem 1", "Imagem 2"...) na ordem da jornada informada pelo usuário. Na coluna "Tela" das tabelas, use o número e o nome da imagem. Telas muito altas chegam divididas em partes ("Imagem 2 — parte 1 de 3"): são recortes verticais consecutivos, com pequena sobreposição, da MESMA tela; um elemento que aparece na sobreposição é um elemento só. Quando a imagem trouxer no topo uma faixa escura de identificação ("IMAGEM 2 · PARTE 1 DE 3"), use exatamente esses números nos campos "imagem" e "parte" do bloco. A faixa não faz parte da tela: não marque nada nela (as coordenadas continuam sendo da imagem inteira como recebida, com a faixa).
 
 3. Camadas do Figma: quando houver "Inventário de camadas do Figma", os textos e as posições ali são exatos (vêm do arquivo de design). Use-os para confirmar textos em vez de depender de OCR. Ao marcar um elemento que existe no inventário, informe o código dele em "figma_ref" (ex.: "F12"); não invente códigos.
 
@@ -131,12 +135,38 @@ Regras do bloco:
 - Inclua todos os elementos OBRIGATÓRIOS e OPCIONAIS/DIAGNÓSTICOS que aparecem nas imagens (são os desenhados). Os NÃO TAGUEAR e NECESSITA CONTEXTO visíveis também podem entrar (a ferramenta só os mostra sob demanda).
 - "classificacao": exatamente "OBRIGATÓRIO", "OPCIONAL/DIAGNÓSTICO", "NÃO TAGUEAR" ou "NECESSITA CONTEXTO". "decisao": "TAGUEAR", "OPCIONAL", "NÃO TAGUEAR" ou "A VALIDAR".
 - "id": o mesmo T1, T2... usado nas tabelas da resposta. "legenda": curta, no formato "T1 — TAGUEAR: início da jornada".
-- "imagem" e "parte": onde o elemento aparece (parte 1 quando a imagem não foi dividida). Coordenadas relativas a essa imagem/parte, com origem no canto superior esquerdo: "bbox_px" em pixels da imagem como recebida (as dimensões vêm na mensagem) e "bbox_normalizada" = bbox_px dividido pela largura/altura (valores de 0 a 1).
+- "imagem" e "parte": onde o elemento aparece (parte 1 quando a imagem não foi dividida). "imagem" é o número da TELA (Imagem 1, Imagem 2...), não a posição do recorte na mensagem; "parte" é o número da parte dentro daquela tela. Coordenadas relativas a essa imagem/parte, com origem no canto superior esquerdo: "bbox_px" em pixels da imagem como recebida (as dimensões vêm na mensagem) e "bbox_normalizada" = bbox_px dividido pela largura/altura (valores de 0 a 1).
 - O retângulo envolve o elemento clicável inteiro (botão, card, link, campo), não só o texto.
 - Eventos sem elemento visível nas imagens (ex.: sucesso numa tela que não foi enviada) ficam fora do bloco.
+- Cobertura: TODA imagem enviada precisa aparecer no bloco. Se uma imagem não tiver nenhum elemento a marcar, inclua para ela um item sem id e sem coordenadas: {"imagem": 3, "sem_elementos": true, "motivo": "tela de carregamento, sem interação"}. Nunca deixe uma imagem de fora em silêncio.
 - JSON válido: aspas duplas, sem comentários, sem vírgula sobrando.
 
 6. Perguntas de acompanhamento: responda direto ao que foi perguntado, mantendo os mesmos IDs (T1, T2...). Só inclua um novo bloco `marcacao` se a marcação mudar; nesse caso devolva o bloco COMPLETO (ele substitui o anterior)."""
+
+
+# Instruções da 2ª etapa (uma chamada por tela): só localizar o que a análise
+# já decidiu. System prompt curto de propósito — as regras do time e a
+# documentação já foram aplicadas na análise.
+INSTRUCOES_MARCACAO = """# MARCAÇÃO VISUAL DE UMA TELA — tarefa técnica
+
+Você recebe UMA tela (às vezes dividida em partes) de uma análise de mensuração que já foi feita, a lista de elementos que a análise decidiu e o texto dessa análise. A sua única tarefa é LOCALIZAR nesta tela os elementos da análise e devolver as coordenadas. Não refaça a análise, não mude classificações nem IDs e não escreva nada fora do bloco.
+
+1. Use os mesmos "id" (T1, T2...), "classificacao", "decisao" e "legenda" da análise. Se um elemento citado nas tabelas da análise aparece nesta tela mas não está na lista, inclua-o com o id que a análise deu a ele.
+2. Inclua só elementos visíveis NESTA tela; elemento da lista que não aparece aqui fica fora. Inclua os OBRIGATÓRIOS e OPCIONAIS/DIAGNÓSTICOS visíveis; os NÃO TAGUEAR e NECESSITA CONTEXTO visíveis também podem entrar.
+3. "imagem" = o número desta tela (informado na mensagem). "parte" = a parte onde o elemento aparece (1 quando a tela não foi dividida). Um elemento na sobreposição entre partes entra uma vez só.
+4. Coordenadas relativas à imagem/parte como recebida, origem no canto superior esquerdo: "bbox_px" em pixels e "bbox_normalizada" = bbox_px dividido pela largura/altura (0 a 1). Se houver uma faixa escura de identificação no topo, ela conta nas coordenadas, mas não é parte da tela: nada fica dentro dela.
+5. O retângulo envolve o elemento clicável inteiro (botão, card, link, campo), não só o texto.
+6. "classificacao": exatamente "OBRIGATÓRIO", "OPCIONAL/DIAGNÓSTICO", "NÃO TAGUEAR" ou "NECESSITA CONTEXTO". "decisao": "TAGUEAR", "OPCIONAL", "NÃO TAGUEAR" ou "A VALIDAR".
+7. Camadas do Figma, quando houver: informe o código da camada em "figma_ref" (ex.: "F12"); não invente códigos.
+8. Não transcreva dados pessoais que aparecerem (CPF, conta, cartão, telefone, e-mail, nome): refira-se ao campo de forma genérica.
+9. Se a tela não tiver nenhum elemento a marcar, devolva {"elementos": [], "sem_elementos": true, "motivo": "..."}.
+10. Responda SOMENTE com um bloco cercado por ```marcacao e ```, JSON válido (aspas duplas, sem comentários):
+
+```marcacao
+{"elementos": [
+  {"id": "T1", "imagem": 1, "parte": 1, "texto": "Solicitar", "classificacao": "OBRIGATÓRIO", "decisao": "TAGUEAR", "legenda": "T1 — TAGUEAR: início da jornada", "figma_ref": null, "bbox_px": {"x": 0, "y": 0, "largura": 0, "altura": 0}, "bbox_normalizada": {"x": 0.0, "y": 0.0, "largura": 0.0, "altura": 0.0}}
+]}
+```"""
 
 
 class ErroPlanner(Exception):
@@ -286,6 +316,7 @@ def config_frontend():
         "limiarDivisao": LIMIAR_DIVISAO,
         "proporcaoParte": PROPORCAO_PARTE,
         "maxPartesPorTela": MAX_PARTES_POR_TELA,
+        "identificarImagens": bool(PLANNER_IDENTIFICAR_IMAGENS),
     }
 
 
@@ -548,6 +579,8 @@ def _validar_parte(bruta, numero, total, rotulo_tela):
         raise ErroPlanner("{}: largura/altura inválidas.".format(onde))
     return {"parte": numero, "mime": mime, "base64": b64,
             "largura": largura, "altura": altura,
+            # altura (px) da faixa "IMAGEM n · PARTE p" desenhada no topo pelo navegador
+            "faixa": _inteiro(bruta.get("faixa"), 0, 4000) or 0,
             "recorte": _validar_recorte(bruta.get("recorte"), numero, total, onde)}
 
 
@@ -723,6 +756,9 @@ def validar_telas(lista):
     for tela in telas:
         for parte in tela["partes"]:
             bytes_imagens += _conferir_imagem(tela, parte)
+            # "faixa" que ocupa metade da imagem não é faixa de identificação
+            if parte["faixa"] * 2 >= (parte["altura"] or 0):
+                parte["faixa"] = 0
         if (tela["largura"] is None or tela["altura"] is None) and tela["partes"]:
             tela["largura"] = tela["partes"][0]["largura"]
             tela["altura"] = tela["partes"][0]["altura"]
@@ -901,6 +937,8 @@ def montar_texto_contexto(contexto, telas):
 def _rotulo_parte(tela, parte, total):
     """Texto que vai logo antes de cada imagem."""
     dims = "{}×{} px".format(parte["largura"], parte["altura"])
+    if parte.get("faixa"):
+        dims += ", com faixa de identificação de {} px no topo".format(parte["faixa"])
     if total == 1:
         return 'Imagem {} ("{}") — {}'.format(tela["indice"], tela["nome"], dims)
     return 'Imagem {} — parte {} de {} ("{}") — {}'.format(
@@ -1356,21 +1394,54 @@ def _normalizar_elemento(bruto, posicao):
     }
 
 
+def _eh_sem_elementos(bruto):
+    """Item {"imagem": 3, "sem_elementos": true, "motivo": "..."}: a imagem foi
+    vista e não tem o que marcar (não é esquecimento)."""
+    if not isinstance(bruto, dict):
+        return False
+    d = {str(k).strip().lower().replace(" ", "_"): v for k, v in bruto.items()}
+    valor = d.get("sem_elementos", d.get("no_elements"))
+    return valor is True or (isinstance(valor, str) and valor.strip().lower() in ("true", "sim"))
+
+
+def _item_sem_elementos(bruto, imagem=None):
+    d = {str(k).strip().lower(): v for k, v in bruto.items()} if isinstance(bruto, dict) else {}
+    motivo = _texto(_primeiro(d, ("motivo", "reason", "justificativa")), 300, linha_unica=True)
+    return {"imagem": imagem or _indice(_primeiro(d, ("imagem", "image"))),
+            "motivo": motivo or "o modelo indicou que não há elementos a marcar nesta tela"}
+
+
 def _normalizar_marcacao(objeto):
+    """{"elementos": [...], "sem_elementos": [{"imagem", "motivo"}]} ou
+    (None, motivo do erro). Um bloco só com "sem_elementos" é válido: a IA
+    olhou as telas e disse por que não há o que marcar."""
     lista = _lista_de_elementos(objeto)
-    if lista is None:
+    sem = []
+    if isinstance(objeto, dict):
+        topo = objeto.get("sem_elementos")
+        if isinstance(topo, list):
+            sem.extend(_item_sem_elementos(b) for b in topo if isinstance(b, dict))
+        elif _eh_sem_elementos(objeto) and not lista:
+            sem.append(_item_sem_elementos(objeto))
+    if lista is None and not sem:
         return None, "O bloco de coordenadas (marcacao) não traz a lista \"elementos\"."
     elementos = []
-    for posicao, bruto in enumerate(lista, 1):
+    for posicao, bruto in enumerate(lista or [], 1):
+        if _eh_sem_elementos(bruto):
+            sem.append(_item_sem_elementos(bruto))
+            continue
         elemento = _normalizar_elemento(bruto, posicao)
         if elemento:
             elementos.append(elemento)
             if len(elementos) >= MAX_ELEMENTOS_MARCACAO:
                 break
-    if not elementos:
+    if not elementos and not sem:
         return None, ("Nenhum elemento do bloco de coordenadas (marcacao) tem posição "
                       "válida nem código do Figma.")
-    return {"elementos": elementos}, None
+    marcacao = {"elementos": elementos}
+    if sem:
+        marcacao["sem_elementos"] = sem
+    return marcacao, None
 
 
 def extrair_marcacao(texto):
@@ -1412,18 +1483,210 @@ def extrair_marcacao(texto):
 def _ajustar_marcacao_as_telas(marcacao, telas):
     """Na análise o servidor sabe quantas imagens/partes foram enviadas:
     elemento numa imagem que não existe sai (não há onde desenhar); parte
-    além da última vira a última (erro de contagem do modelo)."""
+    além da última vira a última (erro de contagem do modelo). Devolve
+    (marcacao | None, quantos elementos saíram)."""
     if not marcacao:
-        return marcacao
-    elementos = []
+        return marcacao, 0
+    elementos, descartados = [], 0
     for elemento in marcacao["elementos"]:
         if elemento["imagem"] > len(telas):
+            descartados += 1
             continue
         # Tela "só camadas" não tem partes: vale a parte 1 (a tela inteira).
         total = max(1, len(telas[elemento["imagem"] - 1]["partes"]))
         elemento["parte"] = min(elemento["parte"], total)
         elementos.append(elemento)
-    return {"elementos": elementos} if elementos else None
+    com_elemento = {e["imagem"] for e in elementos}
+    sem, vistas = [], set()
+    for item in marcacao.get("sem_elementos") or []:
+        n = item["imagem"]
+        if n <= len(telas) and n not in com_elemento and n not in vistas:
+            vistas.add(n)
+            sem.append(item)
+    if not elementos and not sem:
+        return None, descartados
+    ajustada = {"elementos": elementos}
+    if sem:
+        ajustada["sem_elementos"] = sem
+    return ajustada, descartados
+
+
+# ---- 2ª etapa: marcação tela a tela (config PLANNER_MARCACAO_*) ---------------
+
+def _somar_usos(usos):
+    """Soma o uso de tokens de várias chamadas. "estimativa" contamina o total
+    (o painel mostra "~" quando parte do número é estimada)."""
+    total = {"entrada": 0, "saida": 0, "total": 0, "fonte": "api"}
+    fontes = set()
+    for uso in usos:
+        if not isinstance(uso, dict):
+            continue
+        for chave in ("entrada", "saida", "total"):
+            total[chave] += int(uso.get(chave) or 0)
+        fontes.add(uso.get("fonte") or "")
+    fontes.discard("")
+    if "estimativa" in fontes:
+        total["fonte"] = "estimativa"
+    elif fontes:
+        total["fonte"] = sorted(fontes)[0]
+    return total
+
+
+def _texto_marcacao_tela(contexto, telas, indice, texto_analise, rascunho, nova_tentativa):
+    """Texto da chamada de marcação da tela `indice` (1..N)."""
+    tela = telas[indice - 1]
+    linhas = [
+        '## Marcação da Imagem {} de {}: "{}"'.format(indice, len(telas), tela["nome"]),
+        "Esta mensagem traz só a Imagem {} ({}). Use \"imagem\": {} em todos os "
+        "elementos.".format(indice, _descrever_partes(len(tela["partes"])), indice),
+        "**Pergunta de negócio:** " + contexto["pergunta"],
+        "**Canal:** " + (contexto.get("canal") or CANAL_NAO_INFORMADO),
+    ]
+    if nova_tentativa:
+        linhas.append("Uma tentativa anterior não devolveu nenhum elemento para esta tela. "
+                      "Confira de novo; se de fato não houver o que marcar, diga o motivo.")
+    elementos = (rascunho or {}).get("elementos") or []
+    linhas.extend(["", "## Elementos decididos pela análise (todas as telas)"])
+    if elementos:
+        for el in elementos:
+            onde = "nesta tela" if el["imagem"] == indice else "a análise situou na Imagem {}".format(
+                el["imagem"])
+            linhas.append('- {} · {} · {} · "{}" · {} ({})'.format(
+                el["id"], el["classificacao"], el["decisao"], el["texto"] or "-",
+                el["legenda"], onde))
+    else:
+        linhas.append("(a análise não trouxe a lista de coordenadas; use os IDs das tabelas "
+                      "do texto abaixo)")
+    analise = texto_analise or ""
+    if len(analise) > MAX_CHARS_ANALISE_MARCACAO:
+        analise = analise[:MAX_CHARS_ANALISE_MARCACAO] + "\n[... texto cortado ...]"
+    linhas.extend(["", "## Texto da análise (referência)", _bloco_codigo(analise)])
+    inventario = (tela.get("figma") or {}).get("inventario") or []
+    if inventario:
+        linhas.extend([
+            "", "## Inventário de camadas do Figma desta tela",
+            "Coordenadas normalizadas (0 a 1) em relação à TELA INTEIRA (não à parte).",
+        ])
+        linhas.extend(_linha_inventario(item) for item in inventario)
+    linhas.extend(["", "As imagens desta tela vêm a seguir."])
+    return "\n".join(linhas)
+
+
+def _descrever_partes(n):
+    return "tela inteira" if n <= 1 else "{} partes".format(n)
+
+
+def _marcar_tela(contexto, telas, indice, texto_analise, rascunho, nova_tentativa=False):
+    """Uma chamada de marcação só da tela `indice`. Nunca levanta: devolve
+    {"ok", "elementos", "motivo", "uso", "erro"}."""
+    tela = telas[indice - 1]
+    rotulo = "planner-marcacao-{}".format(indice)
+    conteudo = [{"type": "text", "text": _texto_marcacao_tela(
+        contexto, telas, indice, texto_analise, rascunho, nova_tentativa)}]
+    total = len(tela["partes"])
+    for parte in tela["partes"]:
+        conteudo.append({"type": "text", "text": _rotulo_parte(tela, parte, total)})
+        imagem = {"url": "data:{};base64,{}".format(parte["mime"], parte["base64"])}
+        if PLANNER_DETALHE_IMAGEM:
+            imagem["detail"] = PLANNER_DETALHE_IMAGEM
+        conteudo.append({"type": "image_url", "image_url": imagem})
+    extra = sum(estimar_tokens_imagem(p["largura"], p["altura"], PLANNER_DETALHE_IMAGEM)
+                for p in tela["partes"])
+    try:
+        texto, uso = bridge.gerar_texto(
+            [{"role": "user", "content": conteudo}], INSTRUCOES_MARCACAO,
+            modelo=PLANNER_MODELO_LLM, max_tokens=PLANNER_MARCACAO_MAX_TOKENS,
+            reasoning_effort=PLANNER_MARCACAO_REASONING_EFFORT or "", rotulo=rotulo,
+            tokens_extra_estimados=extra)
+    except Exception as e:
+        _console("[planner] Marcação da Imagem {} falhou: {}".format(indice, _detalhe_erro(e)[:160]))
+        return {"ok": False, "elementos": [], "motivo": None, "uso": None,
+                "erro": _detalhe_erro(e)}
+    _limpo, marcacao, erro = extrair_marcacao(texto if isinstance(texto, str) else str(texto or ""))
+    if not marcacao:
+        return {"ok": False, "elementos": [], "motivo": None, "uso": uso,
+                "erro": erro or "sem bloco de coordenadas"}
+    elementos = []
+    for el in marcacao["elementos"]:
+        el["imagem"] = indice                      # a chamada só viu esta tela
+        el["parte"] = min(max(1, el["parte"]), max(1, total))
+        elementos.append(el)
+    motivo = None
+    if not elementos:
+        sem = marcacao.get("sem_elementos") or []
+        motivo = sem[0]["motivo"] if sem else None
+    return {"ok": bool(elementos or motivo), "elementos": elementos, "motivo": motivo,
+            "uso": uso, "erro": None if (elementos or motivo) else "nenhum elemento devolvido"}
+
+
+def _rodar_marcacoes(indices, *args, **kwargs):
+    """Marca as telas `indices` em paralelo (até PLANNER_MARCACAO_PARALELAS)."""
+    if not indices:
+        return {}
+    paralelas = max(1, min(int(PLANNER_MARCACAO_PARALELAS or 1), len(indices)))
+    with ThreadPoolExecutor(max_workers=paralelas) as executor:
+        futuros = {i: executor.submit(_marcar_tela, args[0], args[1], i, *args[2:], **kwargs)
+                   for i in indices}
+        return {i: f.result() for i, f in futuros.items()}
+
+
+def marcar_tela_a_tela(contexto, telas, texto_analise, rascunho, info):
+    """2ª etapa da análise. Parte da marcação da própria análise (`rascunho`,
+    pode ser None) e, para cada tela com imagem:
+      - PLANNER_MARCACAO_POR_IMAGEM: uma chamada só daquela tela, que substitui
+        a marcação da análise para ela (se a chamada falhar, fica a da análise);
+      - PLANNER_MARCACAO_REFAZER: tela que terminou sem elemento e sem motivo
+        ganha mais uma tentativa.
+    Devolve (marcacao | None, [usos]). Falhas aqui nunca derrubam a análise."""
+    n = len(telas)
+    por_tela = {i: [] for i in range(1, n + 1)}
+    motivos = {}
+    for el in (rascunho or {}).get("elementos") or []:
+        por_tela[el["imagem"]].append(el)
+    for item in (rascunho or {}).get("sem_elementos") or []:
+        motivos[item["imagem"]] = item["motivo"]
+    com_imagem = [i for i in range(1, n + 1) if telas[i - 1]["partes"]]
+    usos, falhas = [], 0
+
+    def aplicar(resultados):
+        nonlocal falhas
+        for i, r in resultados.items():
+            if r["uso"]:
+                usos.append(r["uso"])
+            if not r["ok"]:
+                falhas += 1
+                continue
+            por_tela[i] = r["elementos"]
+            if r["elementos"]:
+                motivos.pop(i, None)
+            else:
+                motivos[i] = r["motivo"]
+
+    etapa2 = com_imagem if PLANNER_MARCACAO_POR_IMAGEM else []
+    if etapa2:
+        _console("[planner] Marcação tela a tela: {} chamada(s), até {} ao mesmo tempo.".format(
+            len(etapa2), max(1, int(PLANNER_MARCACAO_PARALELAS or 1))))
+        aplicar(_rodar_marcacoes(etapa2, contexto, telas, texto_analise, rascunho))
+    refazer = ([i for i in com_imagem if not por_tela[i] and i not in motivos]
+               if PLANNER_MARCACAO_REFAZER else [])
+    if refazer:
+        _console("[planner] Imagem(ns) sem marcação: {}. Nova tentativa só delas.".format(
+            ", ".join(str(i) for i in refazer)))
+        aplicar(_rodar_marcacoes(refazer, contexto, telas, texto_analise, rascunho,
+                                 nova_tentativa=True))
+    info["marcacao_chamadas"] = len(etapa2) + len(refazer)
+    info["marcacao_refeitas"] = len(refazer)
+    info["marcacao_falhas"] = falhas
+
+    elementos = [el for i in range(1, n + 1) for el in por_tela[i]][:MAX_ELEMENTOS_MARCACAO]
+    sem = [{"imagem": i, "motivo": motivos[i]} for i in range(1, n + 1)
+           if i in motivos and not por_tela[i]]
+    if not elementos and not sem:
+        return None, usos
+    marcacao = {"elementos": elementos}
+    if sem:
+        marcacao["sem_elementos"] = sem
+    return marcacao, usos
 
 
 # ---- Trilha de auditoria (SPEC §6) -------------------------------------------
@@ -1434,7 +1697,21 @@ def _info_analise():
     return {"sessao": "", "modo": "", "telas": 0, "partes": 0, "origem": "",
             "canal": "", "plataforma": "", "produto_analisado": "", "jornada": "",
             "pergunta": "", "bytes_imagens": 0, "caracteres": 0, "sem_imagem": False,
-            "telas_sem_imagem": 0}
+            "telas_sem_imagem": 0,
+            # marcação (só na análise): ver _registrar_analise
+            "elementos_analise": "", "marcacao_descartados": 0, "marcacao_chamadas": 0,
+            "marcacao_refeitas": 0, "marcacao_falhas": 0}
+
+
+def _contagem_por_tela(marcacao, n_telas):
+    """"3,0,5": elementos marcados em cada tela, na ordem (vazio sem telas)."""
+    if not n_telas:
+        return ""
+    contagem = [0] * n_telas
+    for el in (marcacao or {}).get("elementos") or []:
+        if 1 <= el["imagem"] <= n_telas:
+            contagem[el["imagem"] - 1] += 1
+    return ",".join(str(c) for c in contagem)
 
 
 def _origem_resumo(telas):
@@ -1456,6 +1733,24 @@ def _registrar_analise(usuario, ip, info, status, inicio, uso=None, marcacao=Non
         campos["opcionais"] = sum(1 for e in elementos if e["classificacao"] == "OPCIONAL")
         campos["elementos"] = len(elementos)
         campos["marcacao"] = estado or "ausente"
+        if info["modo"] == "analise" and info["telas"]:
+            # Diagnóstico da marcação (por que uma tela ficou sem caixas):
+            #   elementos_por_imagem  resultado final, tela a tela ("3,0,5")
+            #   elementos_analise     o que a análise marcou antes da 2ª etapa
+            #   imagens_sem_elementos telas que a IA disse não ter o que marcar
+            #   imagens_vazias        telas sem caixas e sem motivo (falha)
+            por_tela = _contagem_por_tela(marcacao, info["telas"])
+            com_motivo = {s["imagem"] for s in (marcacao or {}).get("sem_elementos") or []}
+            vazias = [i for i, c in enumerate(por_tela.split(","), 1)
+                      if c == "0" and i not in com_motivo]
+            campos["elementos_por_imagem"] = por_tela
+            campos["elementos_analise"] = info["elementos_analise"]
+            campos["imagens_sem_elementos"] = len(com_motivo)
+            campos["imagens_vazias"] = len(vazias)
+            for chave in ("marcacao_descartados", "marcacao_chamadas", "marcacao_refeitas",
+                          "marcacao_falhas"):
+                if info[chave]:
+                    campos[chave] = info[chave]
     campos["sem_imagem"] = bool(info["sem_imagem"])
     if info["telas_sem_imagem"]:
         # Telas do Figma que vieram só com camadas (proxy barrou o PNG)
@@ -1546,10 +1841,18 @@ def _fazer_analise(dados, info):
 
     texto_limpo, marcacao, erro_marcacao = extrair_marcacao(texto)
     if marcacao:
-        marcacao = _ajustar_marcacao_as_telas(marcacao, telas)
+        marcacao, info["marcacao_descartados"] = _ajustar_marcacao_as_telas(marcacao, telas)
         if marcacao is None:
             erro_marcacao = ("As coordenadas devolvidas apontam para imagens que não foram "
                              "enviadas; a marcação visual não pôde ser gerada.")
+    # Contagem por tela da marcação da análise (antes da 2ª etapa), para o log
+    info["elementos_analise"] = _contagem_por_tela(marcacao, len(telas))
+    if (PLANNER_MARCACAO_POR_IMAGEM or PLANNER_MARCACAO_REFAZER) and not info["sem_imagem"]:
+        final, usos = marcar_tela_a_tela(contexto, telas, texto_limpo, marcacao, info)
+        if usos:
+            uso = _somar_usos([uso] + usos)
+        if final:
+            marcacao, erro_marcacao = final, None
     estado = "ok" if marcacao else ("invalida" if erro_marcacao else "ausente")
     if estado == "ausente":
         erro_marcacao = MSG_SEM_BLOCO_MARCACAO

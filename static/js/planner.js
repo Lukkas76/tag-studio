@@ -35,6 +35,7 @@
     'Classificando os elementos das telas',
     'Montando o plano mínimo de mensuração',
     'Calculando as coordenadas da marcação',
+    'Conferindo a marcação de cada tela',
     'Revisando o relatório'
   ];
   var SEG_POR_ETAPA = 12;
@@ -1088,7 +1089,7 @@
   function aplicarGeometria(reg, envio){
     reg.telas.forEach(function(t, i){
       t.partes = envio.telas[i].partes.map(function(p){
-        return { parte: p.parte, largura: p.largura, altura: p.altura,
+        return { parte: p.parte, largura: p.largura, altura: p.altura, faixa: p.faixa || 0,
                  recorte: { y: p.recorte.y, altura: p.recorte.altura } };
       });
     });

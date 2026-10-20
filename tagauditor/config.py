@@ -227,6 +227,27 @@ PLANNER_LADO_MAX_ENVIO = 2048
 # analise e refeita SO com as camadas do Figma (textos + posicoes exatas), com
 # um aviso na resposta. False = mostra o erro direto.
 PLANNER_SEM_IMAGEM_SE_RECUSAR = True
+
+# ---- Planner: marcacao consistente com varias telas ---------------------------
+# Faixa escura "IMAGEM 2 · PARTE 1 DE 3" desenhada no topo de cada imagem
+# enviada: o modelo le o numero na propria imagem e erra menos a numeracao. O
+# navegador desconta a faixa das coordenadas antes de desenhar.
+PLANNER_IDENTIFICAR_IMAGENS = True
+# 2a etapa: depois da analise, UMA chamada de marcacao por imagem (so aquela
+# imagem + os eventos ja decididos), em paralelo. Caixas mais precisas e
+# nenhuma tela esquecida; custa ~1 chamada a mais por tela (~R$ 0,26 a 0,55
+# e +40 a 70 s por rodada). False = so a marcacao da analise; a nova tentativa
+# abaixo (PLANNER_MARCACAO_REFAZER) continua valendo para tela vazia.
+PLANNER_MARCACAO_POR_IMAGEM = False
+# Imagem que terminou sem nenhum elemento e sem o motivo ("sem_elementos")
+# ganha mais UMA tentativa de marcacao so dela.
+PLANNER_MARCACAO_REFAZER = True
+# Chamadas de marcacao ao mesmo tempo (a Bridge aceita varias; nao exagere).
+PLANNER_MARCACAO_PARALELAS = 3
+# A marcacao so localiza o que a analise ja decidiu: pede menos raciocinio.
+PLANNER_MARCACAO_REASONING_EFFORT = "medium"
+PLANNER_MARCACAO_MAX_TOKENS = 8000
+
 # Tempo economizado no painel admin (MINUTOS por analise concluida), igual ao
 # TEMPO_MANUAL_MIN/TEMPO_COM_FERRAMENTA_MIN do auditor. 0 nos dois = o painel
 # nao estima economia do Tag Planner. Preencha com a estimativa do time.

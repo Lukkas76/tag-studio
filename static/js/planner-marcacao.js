@@ -155,6 +155,18 @@
     }
     if (!b) return null;
 
+    // 2b) coordenadas vieram na imagem com a faixa de identificação no topo
+    //     (planner-imagens.js): tira a faixa — o que ficou dentro dela some
+    var faixa = parte ? numero(parte.faixa) : 0;
+    var hEnvio = parte ? numero(parte.altura) : 0;
+    if (faixa > 0 && hEnvio > faixa){
+      var f = faixa / hEnvio;
+      var y2 = b.y + b.altura;
+      if (y2 <= f) return null;
+      var y1 = Math.max(b.y, f);
+      b = { x: b.x, largura: b.largura, y: (y1 - f) / (1 - f), altura: (y2 - y1) / (1 - f) };
+    }
+
     // 3) da parte para a tela inteira
     var rec = (parte && parte.recorte) || {};
     var ry = numero(rec.y), ra = numero(rec.altura);
@@ -678,6 +690,15 @@
       if (est.aba === 0 && mapa.orfaos.length) lista = lista.concat(mapa.orfaos);
       return lista;
     }
+    function motivoSemElementos(imagem){
+      var lista = (registro.marcacao && registro.marcacao.sem_elementos) || [];
+      for (var i = 0; i < lista.length; i++){
+        if (lista[i] && +lista[i].imagem === imagem && lista[i].motivo){
+          return String(lista[i].motivo).replace(/[.\s]+$/, '');
+        }
+      }
+      return '';
+    }
     function todosItens(){
       var t = [];
       mapa.porTela.forEach(function(l){ t = t.concat(l); });
@@ -712,6 +733,12 @@
           '“Refaça o bloco de coordenadas da marcação”.');
       } else if (!todosItens().length){
         textos.push('O modelo não marcou nenhum elemento nas imagens.');
+      }
+      // Tela desta aba sem caixas: o motivo que a IA deu, quando deu
+      if (registro.marcacao && todosItens().length && !itensDaAba().length){
+        var motivo = motivoSemElementos(est.aba + 1);
+        textos.push(motivo ? 'Nenhum elemento marcado nesta tela: ' + motivo + '.'
+                           : 'Nenhum elemento marcado nesta tela.');
       }
       if (est.nota) textos.push(est.nota);
       avisoEl.hidden = !textos.length;
@@ -770,6 +797,7 @@
       if (i === est.aba) return;
       est.aba = i;
       est.fixado = null;
+      renderAviso();      // o motivo de "tela sem marcação" é da aba
       renderAbas();
       renderPainel();
       if (focar){
