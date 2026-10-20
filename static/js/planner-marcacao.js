@@ -1030,7 +1030,7 @@
       btnPng.innerHTML = SVG_BAIXAR + '<span>Gerando…</span>';
       gerarPng(tela, itens, {
         titulo: 'Imagem ' + (est.aba + 1) + ' — ' + (tela.nome || 'Tela'),
-        rodape: 'Tag Planner · ' + plataforma + ' — vermelho: obrigatório · amarelo: opcional/diagnóstico' +
+        rodape: 'Planner · ' + plataforma + ' — vermelho: obrigatório · amarelo: opcional/diagnóstico' +
           (est.todos ? ' · cinza tracejado: não taguear/a validar' : '')
       }).then(function(blob){
         baixarBlob(blob, slug(tela.nome, 'tela-' + (est.aba + 1)) + '-marcado.png');

@@ -360,7 +360,7 @@
     estado.atualId = null;
     marcarHash(null);
     destruirVisualizador();
-    porId('tituloPagina').textContent = 'Tag Planner';
+    porId('tituloPagina').textContent = 'Planner';
     renderSidebar();
     renderBannerEdicao();
     atualizarEnvio();
@@ -419,7 +419,7 @@
   // Texto do aviso que o "Sair" mostra antes de derrubar a sessão (sessao.js).
   TA.trabalhoPendente = function(){
     return (estado.ocupado || estado.preparando)
-      ? 'Há uma análise ou pergunta do Tag Planner em andamento e ela será interrompida.' : '';
+      ? 'Há uma análise ou pergunta do Planner em andamento e ela será interrompida.' : '';
   };
   function atualizarAvisoSaida(){
     var precisa = estado.ocupado || estado.preparando;

@@ -217,7 +217,7 @@
       function renderChat(){
         var c = conversaAtual();
         chat.innerHTML = '';
-        tituloConversa.textContent = c ? c.titulo : 'Tag Auditor';
+        tituloConversa.textContent = c ? c.titulo : 'Auditor';
         if (!c || !c.mensagens.length){
           mostrarBoasVindas();
           return;
@@ -229,9 +229,12 @@
         var bv = document.createElement('div');
         bv.className = 'boas-vindas';
         bv.innerHTML =
-          '<img src="/static/logo-tag-auditor.png" alt="Tag Auditor">' +
-          '<h2>Olá! Sou o Tag Auditor.</h2>' +
+          '<img src="/static/logo-tag-auditor.png" alt="">' +
+          '<h2></h2>' +
           '<p>Anexe o plano de tagueamento (.json) para auditar, ou digite uma pergunta.</p>';
+        // nome da plataforma (config.py) entra como texto, nunca como HTML
+        bv.querySelector('h2').textContent = 'Olá! Sou o Auditor do ' +
+          ((CFG.plataforma && CFG.plataforma.nome) || 'Tag Studio') + '.';
         chat.appendChild(bv);
       }
 

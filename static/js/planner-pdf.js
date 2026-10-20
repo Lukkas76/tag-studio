@@ -42,7 +42,7 @@
         var itens = (mapa.porTela[i] || []).filter(function(it){ return M.visivelPorPadrao(it.classe); });
         return M.gerarPng(tela, itens, {
           titulo: 'Imagem ' + (i + 1) + ' — ' + (tela.nome || 'Tela'),
-          rodape: 'Tag Planner · ' + plataforma + ' — vermelho: obrigatório · amarelo: opcional/diagnóstico'
+          rodape: 'Planner · ' + plataforma + ' — vermelho: obrigatório · amarelo: opcional/diagnóstico'
         }).then(blobParaDataUrl).then(function(url){
           saida.push({ indice: i + 1, nome: tela.nome || 'Tela', url: url, n: itens.length,
                        semImagem: !!tela.semImagem });
@@ -136,10 +136,10 @@
 
     var h = [];
     h.push('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">');
-    h.push('<title>' + esc('Tag Planner - ' + (reg.titulo || 'análise')) + '</title>');
+    h.push('<title>' + esc('Planner - ' + (reg.titulo || 'análise')) + '</title>');
     h.push('<style>' + CSS + '</style></head><body>');
     h.push('<header class="topo"><img src="' + origem + '/static/planner-icone.svg" alt="">' +
-      '<div class="marca"><b>Tag Planner</b><span>Relatório de mensuração · ' + esc(plataforma) + '</span></div>' +
+      '<div class="marca"><b>Planner</b><span>Relatório de mensuração · ' + esc(plataforma) + '</span></div>' +
       '<div class="data">Análise de ' + esc(dataHora(reg.atualizadoEm || reg.criadoEm)) +
       '<br>Exportado em ' + esc(dataHora()) + '</div></header>');
 
@@ -204,7 +204,7 @@
       });
     }
 
-    h.push('<div class="rodape">Gerado pelo Tag Planner (' + esc(plataforma) + ' · Bradesco IA Gen). ' +
+    h.push('<div class="rodape">Gerado pelo Planner (' + esc(plataforma) + ' · Bradesco IA Gen). ' +
       'Recomendação gerada por IA: valide a taxonomia e o plano com a governança de analytics antes de ' +
       'implementar.</div>');
     h.push('</body></html>');
@@ -253,7 +253,7 @@
     plataforma = plataforma || (TA.cfg.plataforma && TA.cfg.plataforma.nome) || 'Tag Studio';
     var mapa = TA.plannerMarcacao.mapearElementos(reg.marcacao, reg.telas || []);
     return imagensMarcadas(reg, mapa, plataforma).then(function(imagens){
-      var titulo = 'Tag Planner - ' + String(reg.titulo || 'análise').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 80);
+      var titulo = 'Planner - ' + String(reg.titulo || 'análise').replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 80);
       return imprimir(montarHtml(reg, imagens, mapa, plataforma), titulo);
     });
   }

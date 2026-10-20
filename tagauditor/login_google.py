@@ -25,6 +25,7 @@ import urllib.request
 from .config import (
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, URL_GOOGLE_DEVICE_CODE,
     URL_GOOGLE_TOKEN, PROXY_GOOGLE, EMAILS_AUTORIZADOS, DOMINIOS_AUTORIZADOS,
+    NOME_PLATAFORMA,
 )
 from .rede import CTX_SSL
 
@@ -69,7 +70,7 @@ def _usuario_dos_claims(claims):
     if EMAILS_AUTORIZADOS or DOMINIOS_AUTORIZADOS:
         dominio = email.split("@")[-1]
         if email not in EMAILS_AUTORIZADOS and dominio not in DOMINIOS_AUTORIZADOS:
-            raise ValueError("A conta {} não está autorizada a usar o Tag Auditor.".format(email))
+            raise ValueError("A conta {} não está autorizada a usar o {}.".format(email, NOME_PLATAFORMA))
 
     return {
         "email": email,

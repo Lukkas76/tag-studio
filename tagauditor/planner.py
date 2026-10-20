@@ -340,7 +340,7 @@ def obter_system_prompt():
     arquivo de regras levanta ErroPlanner (500) com a explicação; sem a
     documentação, segue sem ela e avisa no console."""
     if not PLANNER_ARQUIVO_PROMPT:
-        raise ErroPlanner("O arquivo de regras do Tag Planner não está configurado "
+        raise ErroPlanner("O arquivo de regras do Planner não está configurado "
                           "(PLANNER_ARQUIVO_PROMPT no config.py).", 500)
     caminho_regras = _caminho_projeto(PLANNER_ARQUIVO_PROMPT)
     caminho_doc = (_caminho_projeto(PLANNER_ARQUIVO_DOCUMENTACAO)
@@ -351,7 +351,7 @@ def obter_system_prompt():
         if _cache_prompt["texto"] is not None and _cache_prompt["chave"] == chave:
             return _cache_prompt["texto"]
         sem_regras = ErroPlanner(
-            "O arquivo de regras do Tag Planner ({}) não foi encontrado na pasta do "
+            "O arquivo de regras do Planner ({}) não foi encontrado na pasta do "
             "projeto. Restaure o arquivo ou ajuste PLANNER_ARQUIVO_PROMPT no "
             "config.py.".format(PLANNER_ARQUIVO_PROMPT), 500)
         if chave[1] is None:
@@ -361,7 +361,7 @@ def obter_system_prompt():
         except OSError:
             raise sem_regras
         if not regras:
-            raise ErroPlanner("O arquivo de regras do Tag Planner ({}) está vazio.".format(
+            raise ErroPlanner("O arquivo de regras do Planner ({}) está vazio.".format(
                 PLANNER_ARQUIVO_PROMPT), 500)
         doc = ""
         if caminho_doc:

@@ -583,7 +583,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
                 status, corpo = planner.rota_analisar(dados, usuario, self._ip())
         except Exception as e:
             print("[planner][erro] {!a}".format(e)[:300])   # ascii(): seguro em console cp1252
-            status, corpo = 500, {"erro": "Erro interno do Tag Planner. Tente de novo."}
+            status, corpo = 500, {"erro": "Erro interno do Planner. Tente de novo."}
         try:
             self._responder(status, json.dumps(corpo, ensure_ascii=False))
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
@@ -856,13 +856,13 @@ def main():
     url = "http://127.0.0.1:{}".format(porta)
     url_nome, url_fqdn, url_ip = _enderecos_de_acesso(porta)
     print("=" * 62)
-    print("  {} - Tag Auditor + Tag Planner".format(NOME_PLATAFORMA.upper()))
+    print("  {} - Auditor + Planner".format(NOME_PLATAFORMA.upper()))
     print("  (Bridge / Bradesco IA Gen)")
     print("=" * 62)
     print("  Escutando na porta {} (0.0.0.0)".format(porta))
     print("  No seu PC, abra:  {}".format(url))
-    print("      Tag Auditor:  {}/auditor".format(url))
-    print("      Tag Planner:  {}/planner".format(url))
+    print("      Auditor:  {}/auditor".format(url))
+    print("      Planner:  {}/planner".format(url))
     print()
     if url_nome or url_fqdn:
         print("  COMPARTILHE ESTA URL (nome da máquina - NÃO muda com a VPN):")

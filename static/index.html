@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 __GTM_HEAD__
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tag Auditor - Login</title>
+<title>__NOME_PLATAFORMA__ | Login</title>
 <link rel="icon" href="/static/logo-tag-auditor.png">
 <link rel="stylesheet" href="/static/style.css">
 <link rel="stylesheet" href="/static/hub.css">
@@ -20,8 +20,8 @@ __GTM_BODY__
   <!-- Tela de Login (única para todas as ferramentas da plataforma) -->
   <div id="telaLogin" class="tela-login">
     <div class="login-box">
-      <img class="login-logo" src="/static/logo-tag-auditor.png" alt="Tag Auditor">
-      <h1>Tag Auditor</h1>
+      <img class="login-logo" src="/static/logo-tag-auditor.png" alt="">
+      <h1>__NOME_PLATAFORMA__</h1>
       <div class="login-chip">Bradesco IA Gen</div>
       <div class="login-passos">
         <div class="passo"><span class="passo-num">1</span> Gere seu código de acesso:</div>
@@ -88,117 +88,67 @@ __GTM_BODY__
 
     <main class="hub-conteudo">
       <section class="hub-hero">
-        <h1 class="hub-titulo" id="hubTitulo" tabindex="-1">
-          <span id="hubSaudacao">Olá.</span>
-          <span class="hub-titulo-sub">Escolha uma ferramenta para começar.</span>
-        </h1>
-        <p class="hub-intro">Ferramentas de IA do COE Plataforma de Canais Digitais para planejar e auditar o tagueamento GA4 dos produtos digitais do Bradesco.</p>
+        <div class="hub-hero-texto">
+          <h1 class="hub-titulo" id="hubTitulo" tabindex="-1"><span id="hubSaudacao">Olá.</span></h1>
+          <p class="hub-intro">Planeje e audite o tagueamento GA4 dos produtos digitais com IA.</p>
+        </div>
+        <!-- Só para administradores (EMAILS_ADMIN): hub.js mostra -->
+        <a class="hub-admin" id="hubAdmin" href="/admin" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+          Painel administrativo
+        </a>
       </section>
 
       <section class="hub-ferramentas" aria-label="Ferramentas">
         <a class="hub-card" href="/auditor" id="cardAuditor">
-          <div class="hub-card-cab">
-            <span class="hub-card-icone"><img src="/static/logo-tag-auditor.png" alt=""></span>
-            <div class="hub-card-ident">
-              <h2 class="hub-card-nome">Tag Auditor</h2>
+          <span class="hub-card-icone"><img src="/static/logo-tag-auditor.png" alt=""></span>
+          <div class="hub-card-corpo">
+            <div class="hub-card-topo">
+              <h2 class="hub-card-nome">Auditor</h2>
               <span class="hub-tag">Auditoria</span>
             </div>
+            <p class="hub-card-desc">Confere o plano de tagueamento contra o padrão Bradesco antes de implementar.</p>
+            <span class="hub-card-meta">Plano .json ou Confluence &rarr; ajustes por evento</span>
           </div>
-          <p class="hub-card-desc">Audite o plano de tagueamento contra o padrão Bradesco antes de implementar.</p>
-          <dl class="hub-card-io">
-            <div><dt>Você envia</dt><dd>Plano (.json) ou URL do Confluence + canal (Web, WebView ou App nativo)</dd></div>
-            <div><dt>Você recebe</dt><dd>Tabela de ajustes por evento, com os limites técnicos do GA4 conferidos automaticamente</dd></div>
-          </dl>
-          <span class="hub-card-cta">Abrir Tag Auditor <span class="hub-seta" aria-hidden="true">&rarr;</span></span>
+          <span class="hub-card-seta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
         </a>
 
         <a class="hub-card" href="/planner" id="cardPlanner">
-          <div class="hub-card-cab">
-            <span class="hub-card-icone hub-card-icone-planner" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
-            </span>
-            <div class="hub-card-ident">
-              <h2 class="hub-card-nome">Tag Planner <span class="hub-badge">Novo</span></h2>
+          <span class="hub-card-icone"><img src="/static/planner-icone.svg" alt=""></span>
+          <div class="hub-card-corpo">
+            <div class="hub-card-topo">
+              <h2 class="hub-card-nome">Planner</h2>
               <span class="hub-tag">Planejamento</span>
+              <span class="hub-badge">Novo</span>
             </div>
+            <p class="hub-card-desc">Define o que taguear a partir da tela e da pergunta de negócio.</p>
+            <span class="hub-card-meta">Prints ou Figma &rarr; KPI, plano mínimo e tela marcada</span>
           </div>
-          <p class="hub-card-desc">Descubra o que taguear a partir da tela e da pergunta de negócio.</p>
-          <dl class="hub-card-io">
-            <div><dt>Você envia</dt><dd>Prints da tela ou URL do Figma + a pergunta de negócio</dd></div>
-            <div><dt>Você recebe</dt><dd>KPI com numerador e denominador, o que é obrigatório, opcional ou descartável, plano mínimo de eventos, taxonomia sugerida e a tela marcada</dd></div>
-          </dl>
-          <span class="hub-card-cta">Abrir Tag Planner <span class="hub-seta" aria-hidden="true">&rarr;</span></span>
+          <span class="hub-card-seta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
         </a>
       </section>
 
-      <section class="hub-secao" aria-labelledby="tituloFluxo">
-        <h2 class="hub-secao-titulo" id="tituloFluxo">Como as ferramentas se conectam</h2>
-        <ol class="hub-passos" role="list">
-          <li class="hub-passo">
-            <span class="hub-passo-num" aria-hidden="true">1</span>
-            <div class="hub-passo-corpo">
-              <div class="hub-passo-cab"><h3 class="hub-passo-verbo">Planeje</h3><span class="hub-passo-onde">Tag Planner</span></div>
-              <p>Defina o KPI e o conjunto mínimo de eventos a partir da tela.</p>
-            </div>
-          </li>
-          <li class="hub-passo hub-passo-doc">
-            <span class="hub-passo-num" aria-hidden="true">2</span>
-            <div class="hub-passo-corpo">
-              <div class="hub-passo-cab"><h3 class="hub-passo-verbo">Documente</h3><span class="hub-passo-onde">Mapa de tagueamento</span></div>
-              <p>Registre o mapa no Confluence com a taxonomia oficial.</p>
-            </div>
-          </li>
-          <li class="hub-passo">
-            <span class="hub-passo-num" aria-hidden="true">3</span>
-            <div class="hub-passo-corpo">
-              <div class="hub-passo-cab"><h3 class="hub-passo-verbo">Audite</h3><span class="hub-passo-onde">Tag Auditor</span></div>
-              <p>Valide o mapa contra o padrão antes de implementar e homologar.</p>
-            </div>
-          </li>
-        </ol>
-      </section>
-
-      <div class="hub-paineis">
-        <section class="hub-painel" id="painelUso" aria-labelledby="tituloUso">
-          <h2 class="hub-painel-titulo" id="tituloUso" tabindex="-1">Seu uso em <span id="usoMes"></span></h2>
+      <section class="hub-painel" id="painelUso" aria-labelledby="tituloUso">
+        <h2 class="hub-painel-titulo" id="tituloUso" tabindex="-1">Seu uso em <span id="usoMes"></span></h2>
+        <div class="hub-uso">
           <dl class="hub-stats" id="usoStats">
             <div class="hub-stat"><dt>Auditorias</dt><dd id="usoAuditorias"></dd></div>
-            <div class="hub-stat"><dt>Análises no Planner</dt><dd id="usoAnalises"></dd></div>
+            <div class="hub-stat"><dt>Análises</dt><dd id="usoAnalises"></dd></div>
             <div class="hub-stat hub-stat-ultima"><dt>Última atividade</dt><dd id="usoUltima"></dd></div>
           </dl>
           <p class="hub-uso-nota" id="usoPlataforma"></p>
-          <div class="hub-uso-erro" id="usoErro" hidden>
-            <span>Não foi possível carregar agora.</span>
-            <button type="button" class="hub-btn-tentar" id="usoTentar">Tentar de novo</button>
-          </div>
-          <p class="hub-sr" id="usoAnuncio" role="status"></p>
-        </section>
-
-        <section class="hub-painel" aria-labelledby="tituloPraticas">
-          <h2 class="hub-painel-titulo" id="tituloPraticas">Boas práticas</h2>
-          <ul class="hub-praticas" role="list">
-            <li>
-              <span class="hub-pratica-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6L12 3z"/><path d="m9 12 2 2 4-4"/></svg></span>
-              <span>Nada de dados reais de clientes nas telas: prefira o Figma ou prints mascarados (CPF, agência e conta, cartão, telefone, e-mail, nome).</span>
-            </li>
-            <li>
-              <span class="hub-pratica-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="14" height="10" rx="1.5"/><path d="M6 18h6M9 14v4"/><rect x="17" y="8" width="5" height="12" rx="1.2"/></svg></span>
-              <span>Informe o canal — Web, WebView ou App nativo: a taxonomia muda.</span>
-            </li>
-            <li>
-              <span class="hub-pratica-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="m16 11 2 2 4-4"/></svg></span>
-              <span>A IA sugere; a decisão final e a homologação são do time. Achou um erro? Use o &#128078; e conte o motivo.</span>
-            </li>
-          </ul>
-        </section>
-      </div>
-
-      <!-- Só para administradores (EMAILS_ADMIN): hub.js mostra -->
-      <section class="hub-admin" id="hubAdmin" aria-label="Administração da plataforma" hidden>
-        <span class="hub-admin-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg></span>
-        <p class="hub-admin-texto"><strong>Painel administrativo</strong> — uso, satisfação, custos e logs de todas as ferramentas.</p>
-        <a class="hub-admin-link" href="/admin">Abrir painel <span aria-hidden="true">&rarr;</span></a>
+        </div>
+        <div class="hub-uso-erro" id="usoErro" hidden>
+          <span>Não foi possível carregar agora.</span>
+          <button type="button" class="hub-btn-tentar" id="usoTentar">Tentar de novo</button>
+        </div>
+        <p class="hub-sr" id="usoAnuncio" role="status"></p>
       </section>
+
+      <p class="hub-lembrete">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6L12 3z"/><path d="m9 12 2 2 4-4"/></svg>
+        <span>Nada de dados reais de clientes nas telas: use o Figma ou prints mascarados. A IA sugere; a decisão final é do time.</span>
+      </p>
     </main>
 
     <footer class="hub-rodape">
