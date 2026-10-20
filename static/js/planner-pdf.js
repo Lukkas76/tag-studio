@@ -157,6 +157,16 @@
       linhaContexto('Observações', c.observacoes) +
       linhaContexto('Analista', [u.nome, u.email].filter(Boolean).join(' · ')) +
       '</table>');
+    // Dúvidas que a IA levantou antes da análise: confirmado x suposto
+    var duvidas = (c.esclarecimentos || []).filter(function(e){ return e && e.pergunta; });
+    if (duvidas.length){
+      h.push('<div class="rotulo">Dúvidas da IA antes da análise</div><table class="ctx">' +
+        duvidas.map(function(e){
+          return '<tr><th>' + esc(e.pergunta) + '</th><td>' + (e.resposta
+            ? '<b>Confirmado:</b> ' + esc(e.resposta)
+            : '<b>Premissa:</b> ' + esc(e.premissa || 'sem premissa informada')) + '</td></tr>';
+        }).join('') + '</table>');
+    }
 
     h.push('<div class="resumo"><div><b>' + obrig + '</b><span>obrigatórios</span></div>' +
       '<div class="op"><b>' + opc + '</b><span>opcionais/diagnóstico</span></div>' +

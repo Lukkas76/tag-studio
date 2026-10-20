@@ -39,7 +39,10 @@
     limiarDivisao: 2.4,
     proporcaoParte: 1.8,
     maxPartesPorTela: 6,
-    identificarImagens: false
+    identificarImagens: false,
+    // etapa de dúvidas da IA antes da análise (PLANNER_ESCLARECER_* no config.py)
+    esclarecer: false,
+    maxPerguntas: 3
   };
 
   // Versão guardada/exibida (ver cabeçalho)

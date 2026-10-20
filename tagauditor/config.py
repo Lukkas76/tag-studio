@@ -248,6 +248,17 @@ PLANNER_MARCACAO_PARALELAS = 3
 PLANNER_MARCACAO_REASONING_EFFORT = "medium"
 PLANNER_MARCACAO_MAX_TOKENS = 8000
 
+# ---- Planner: duvidas da IA antes da analise -----------------------------------
+# Depois de subir as telas e escrever a pergunta, a IA le as telas e faz ate
+# PLANNER_ESCLARECER_MAX_PERGUNTAS perguntas (com respostas sugeridas e a
+# premissa que ela assume se a pessoa pular). As respostas vao junto com o
+# pedido de analise. ~1 chamada a mais por analise (~40 a 70 s). False = o
+# botao vai direto para a analise, como antes.
+PLANNER_ESCLARECER = True
+PLANNER_ESCLARECER_MAX_PERGUNTAS = 3
+PLANNER_ESCLARECER_REASONING_EFFORT = "medium"
+PLANNER_ESCLARECER_MAX_TOKENS = 6000
+
 # Tempo economizado no painel admin (MINUTOS por analise concluida), igual ao
 # TEMPO_MANUAL_MIN/TEMPO_COM_FERRAMENTA_MIN do auditor. 0 nos dois = o painel
 # nao estima economia do Tag Planner. Preencha com a estimativa do time.

@@ -328,16 +328,6 @@ textarea.pl-input{resize:vertical; min-height:44px; line-height:1.45;}
 }
 .pl-tela-acoes{display:flex; gap:2px; flex:none;}
 .pl-telas-vazio{font-size:12.5px; color:var(--tinta-suave); text-align:center; margin-top:14px; line-height:1.5;}
-@container miolo (max-width: 460px){
-  .pl-tela{
-    display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-areas:"thumb info" "thumb acoes";
-    column-gap:10px; row-gap:2px; align-items:start;
-  }
-  .pl-tela-num{display:none;}
-  .pl-tela-thumb{grid-area:thumb;}
-  .pl-tela-info{grid-area:info;}
-  .pl-tela-acoes{grid-area:acoes; margin-left:-6px;}
-}
 
 /* ---- Rodapé do formulário: privacidade + Analisar ---- */
 .pl-envio{margin-top:18px; display:flex; flex-direction:column; gap:12px;}
@@ -629,4 +619,243 @@ textarea.pl-input{resize:vertical; min-height:44px; line-height:1.45;}
   .pl-prog-barra::after{animation:none; left:0; width:100%; opacity:.35;}
   .pl-conv-st.andamento, .pl-giro, .pl-drop-status::before{animation:none;}
   .pl-caixa, .pl-leg, .pl-btn{transition:none;}
+}
+
+
+/* =====================================================================
+   Formulário executivo + etapa de dúvidas (out/2026)
+   ===================================================================== */
+
+/* ---- Topo das vistas: título + indicador de etapas ---- */
+.pl-topo-vista{display:flex; align-items:flex-end; justify-content:space-between; gap:14px 24px; flex-wrap:wrap; margin-bottom:20px;}
+.pl-topo-tit{min-width:0; flex:1 1 380px;}
+.pl-topo-vista h1{font-size:24px; font-weight:800; letter-spacing:-.02em; color:var(--tinta); line-height:1.2;}
+.pl-topo-vista h1:focus{outline:none;}
+.pl-topo-sub{font-size:13.5px; color:var(--tinta-suave); line-height:1.55; margin-top:6px; max-width:640px;}
+.pl-topo-lado{display:flex; flex-direction:column; align-items:flex-end; gap:6px; max-width:100%;}
+
+.pl-passos{
+  list-style:none; display:flex; align-items:center; max-width:100%;
+  background:var(--cartao); border:1px solid var(--borda); border-radius:999px; padding:4px;
+  box-shadow:0 1px 2px rgba(16,24,52,.04);
+}
+.pl-passos li{display:flex; align-items:center; gap:8px; padding:5px 12px 5px 5px; border-radius:999px; font-size:12.5px; font-weight:600; color:var(--tinta-suave); white-space:nowrap; min-width:0;}
+.pl-passos li + li{margin-left:2px;}
+.pl-passos li + li::before{content:''; width:12px; height:1px; background:#D6D9E2; margin-right:2px; flex:none;}
+.pl-passo-n{
+  width:22px; height:22px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+  font-size:11.5px; font-weight:800; background:var(--fundo); color:var(--tinta-suave); border:1px solid var(--borda);
+}
+.pl-passo-n svg{width:12px; height:12px;}
+.pl-passos li.ativo{background:var(--vermelho-claro); color:var(--vermelho-escuro);}
+.pl-passos li.ativo .pl-passo-n{background:var(--vermelho); border-color:var(--vermelho); color:#fff; box-shadow:0 2px 6px rgba(204,9,47,.3);}
+.pl-passos li.feito{color:var(--tinta);}
+.pl-passos li.feito .pl-passo-n{background:var(--pl-ok); border-color:var(--pl-ok); color:#fff;}
+@media (max-width:640px){
+  .pl-topo-lado{align-items:flex-start; width:100%;}
+  .pl-passos li:not(.ativo) .pl-passo-t{display:none;}
+  .pl-passos li:not(.ativo){padding-right:5px;}
+}
+
+/* ---- Cartões do formulário ---- */
+.pl-sec-icone{
+  width:36px; height:36px; border-radius:11px; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--vermelho-claro); color:var(--vermelho);
+}
+.pl-sec-icone svg{width:18px; height:18px;}
+.pl-sec-cab .pl-sec-tit{padding-top:1px;}
+@container miolo (min-width: 880px){
+  .pl-form-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);}
+}
+.pl-input-destaque{font-size:15px; padding:12px 14px; min-height:104px; line-height:1.5;}
+
+/* ---- Área de soltar: grande sem telas, compacta (em linha) depois ---- */
+.pl-drop .pl-drop-icone{
+  width:54px; height:54px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+  background:var(--cartao); box-shadow:0 4px 14px -4px rgba(204,9,47,.35); margin-bottom:6px;
+}
+.pl-drop .pl-drop-icone svg{width:26px; height:26px; margin:0;}
+.pl-drop-txt{display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;}
+.pl-drop{padding:30px 16px 28px;}
+.pl-drop.pl-drop-compacto{flex-direction:row; text-align:left; padding:12px 14px; gap:12px;}
+.pl-drop.pl-drop-compacto .pl-drop-txt{align-items:flex-start;}
+.pl-drop.pl-drop-compacto .pl-drop-icone{width:38px; height:38px; margin:0; box-shadow:none; background:var(--vermelho-claro);}
+.pl-drop.pl-drop-compacto .pl-drop-icone svg{width:19px; height:19px;}
+.pl-drop.pl-drop-compacto .pl-drop-titulo{font-size:13.5px;}
+.pl-drop.pl-drop-compacto .pl-drop-status{margin:0 0 0 auto;}
+
+/* ---- Telas em grade de miniaturas (ordem = jornada) ---- */
+.pl-telas{display:grid; grid-template-columns:repeat(auto-fill, minmax(128px, 1fr)); gap:12px; margin-top:14px;}
+.pl-tela{flex-direction:column; align-items:stretch; gap:8px; padding:7px; border-radius:14px;}
+.pl-tela-thumb{position:relative; width:100%; height:auto; aspect-ratio:3 / 4; border-radius:10px;}
+.pl-tela-num{
+  position:absolute; top:7px; left:7px; width:24px; height:24px;
+  background:var(--vermelho); color:#fff; box-shadow:0 2px 6px rgba(204,9,47,.35);
+}
+.pl-tela-acoes{
+  position:absolute; top:6px; right:6px; gap:1px; padding:2px; border-radius:9px;
+  background:rgba(255,255,255,.95); box-shadow:0 2px 8px rgba(16,24,52,.18);
+  opacity:0; transition:opacity .15s;
+}
+.pl-tela:hover .pl-tela-acoes, .pl-tela:focus-within .pl-tela-acoes{opacity:1;}
+@media (hover:none){ .pl-tela-acoes{opacity:1;} }
+.pl-tela-acoes .pl-icone-btn{width:26px; height:26px;}
+.pl-tela-acoes .pl-icone-btn svg{width:15px; height:15px;}
+.pl-tela-info{padding:0 2px 2px;}
+.pl-tela-nome{font-size:13px; padding:3px 4px; margin-left:-4px; width:calc(100% + 4px);}
+.pl-tela-meta{font-size:11px; gap:3px 6px;}
+
+/* ---- Mapa de métricas (recolhido) ---- */
+.pl-mais{border:1px solid var(--borda); border-radius:12px; background:#FCFCFE; margin-top:4px;}
+.pl-mais summary{
+  cursor:pointer; list-style:none; position:relative; border-radius:12px;
+  padding:11px 40px 11px 14px; display:flex; flex-direction:column; gap:2px;
+}
+.pl-mais summary::-webkit-details-marker{display:none;}
+.pl-mais summary::after{
+  content:''; position:absolute; right:16px; top:50%; width:7px; height:7px; margin-top:-6px;
+  border-right:2px solid var(--tinta-suave); border-bottom:2px solid var(--tinta-suave);
+  transform:rotate(45deg); transition:transform .15s;
+}
+.pl-mais[open] summary::after{transform:rotate(-135deg); margin-top:-2px;}
+.pl-mais summary:hover .pl-mais-tit{color:var(--vermelho);}
+.pl-mais-tit{font-size:13px; font-weight:600; color:var(--tinta);}
+.pl-mais-sub{font-size:12px; color:var(--tinta-suave); line-height:1.45;}
+.pl-mais-corpo{padding:0 14px 14px;}
+
+/* ---- "Sem formulário longo" ---- */
+.pl-como{
+  display:flex; gap:12px; align-items:flex-start; margin-top:16px; padding:13px 14px; border-radius:12px;
+  background:linear-gradient(135deg,#FFF8F9,#FDEEF1); border:1px solid #F5D2DA;
+  font-size:12.5px; line-height:1.55; color:#5B1020;
+}
+.pl-como p{min-width:0;}
+.pl-como-icone{
+  width:32px; height:32px; border-radius:10px; flex:none; display:flex; align-items:center; justify-content:center;
+  color:#fff; background:linear-gradient(135deg,#E00A38,#B8082C); box-shadow:0 3px 8px rgba(204,9,47,.28);
+}
+.pl-como-icone svg{width:17px; height:17px;}
+
+/* ---- Barra de ações fixa no pé (formulário e dúvidas) ---- */
+.pl-barra{
+  position:sticky; bottom:12px; z-index:6; margin-top:18px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px 20px; flex-wrap:wrap;
+  padding:11px 12px 11px 18px; border-radius:16px; border:1px solid var(--borda);
+  background:rgba(255,255,255,.96); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  box-shadow:0 10px 30px -14px rgba(16,24,52,.35), 0 1px 2px rgba(16,24,52,.05);
+}
+.pl-barra-priv{display:flex; align-items:center; gap:9px; flex:1 1 260px; min-width:0; font-size:12.5px; line-height:1.45; color:var(--tinta-suave);}
+.pl-barra-priv svg{width:18px; height:18px; flex:none; color:var(--vermelho);}
+.pl-barra-priv strong{color:var(--tinta);}
+.pl-barra-acoes{display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; min-width:0;}
+.pl-barra .pl-envio-status{flex:0 1 260px; text-align:right;}
+.pl-barra .pl-btn-grande{padding:12px 22px;}
+#envioMsg{margin-top:12px;}
+@media (max-width:640px){
+  .pl-barra{bottom:8px; padding:12px;}
+  /* no celular a barra do formulário fica no fim da página (fixa, cobriria
+     meia tela); a das dúvidas, menor, continua fixa */
+  #barraEnvio{position:static;}
+  .pl-barra-acoes{width:100%;}
+  .pl-barra .pl-envio-status{flex-basis:100%; text-align:left;}
+  .pl-barra-acoes .pl-btn{flex:1 1 auto;}
+}
+
+/* ---- Dúvidas da IA ---- */
+.pl-dv-grid{display:grid; grid-template-columns:minmax(0,1fr); gap:18px; align-items:start;}
+@container miolo (min-width: 900px){
+  .pl-dv-grid{grid-template-columns:290px minmax(0,1fr);}
+  .pl-dv-resumo{position:sticky; top:16px;}
+}
+.pl-dv-resumo{padding:18px;}
+.pl-dv-rotulo{font-size:10.5px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--vermelho);}
+.pl-dv-pergunta{font-size:15px; font-weight:700; line-height:1.45; color:var(--tinta); margin-top:6px; overflow-wrap:anywhere;}
+.pl-dv-resumo .pl-chips{margin-top:10px;}
+.pl-dv-telas{list-style:none; display:grid; grid-template-columns:repeat(auto-fill, minmax(70px, 1fr)); gap:8px; margin-top:14px;}
+.pl-dv-tela{min-width:0;}
+.pl-dv-tela img{width:100%; aspect-ratio:3 / 4; object-fit:cover; object-position:top; display:block; border-radius:8px; border:1px solid var(--borda); background:#fff;}
+.pl-dv-tela-nome{display:block; font-size:11px; color:var(--tinta-suave); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.pl-dv-tela-nome b{color:var(--vermelho-escuro);}
+.pl-dv-voltar{margin-top:16px; width:100%;}
+
+.pl-dv-carregando, .pl-dv-erro{padding:34px 28px 28px; text-align:center; animation:login-surgir .3s ease both;}
+.pl-dv-erro .pl-erro-icone{margin-bottom:12px;}
+.pl-dv-carr-tit{font-size:18px; font-weight:800; color:var(--tinta); letter-spacing:-.01em;}
+.pl-dv-carr-txt{font-size:13.5px; color:var(--tinta-suave); line-height:1.6; margin:8px auto 0; max-width:500px; overflow-wrap:anywhere;}
+
+.pl-dv-entendi{
+  display:flex; gap:14px; align-items:flex-start; margin-bottom:16px; padding:16px 18px; border-radius:var(--pl-raio);
+  background:linear-gradient(135deg,#FFFFFF 30%,#FFF4F6); border:1px solid #F3D3DA; box-shadow:var(--pl-sombra);
+}
+.pl-dv-entendi-icone{
+  width:38px; height:38px; border-radius:12px; flex:none; display:flex; align-items:center; justify-content:center;
+  color:#fff; background:linear-gradient(135deg,#E00A38,#B8082C); box-shadow:0 3px 10px rgba(204,9,47,.3);
+}
+.pl-dv-entendi-icone svg{width:19px; height:19px;}
+.pl-dv-entendi-txt{min-width:0;}
+.pl-dv-entendi-txt p{font-size:14.5px; line-height:1.55; color:var(--tinta); margin-top:4px; overflow-wrap:anywhere;}
+.pl-dv-instrucao{font-size:12.5px; color:var(--tinta-suave); margin:0 2px 10px; line-height:1.5;}
+.pl-dv-lista{list-style:none; display:flex; flex-direction:column; gap:12px;}
+.pl-dv-item{padding:16px 18px; border-left:4px solid #E3E6ED; transition:border-color .15s, box-shadow .15s;}
+.pl-dv-item.respondida{border-left-color:var(--pl-ok);}
+.pl-dv-item:focus-within{box-shadow:0 0 0 3px var(--vermelho-claro), var(--pl-sombra);}
+.pl-dv-cab{display:flex; align-items:flex-start; gap:12px;}
+.pl-dv-num{
+  width:28px; height:28px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:800; color:var(--tinta); background:var(--fundo); border:1px solid var(--borda);
+  transition:background .15s, color .15s, border-color .15s;
+}
+.pl-dv-item.respondida .pl-dv-num{background:var(--pl-ok); border-color:var(--pl-ok); color:#fff;}
+.pl-dv-q{flex:1; min-width:0; padding-top:3px; font-size:15px; font-weight:700; line-height:1.45; color:var(--tinta); overflow-wrap:anywhere;}
+.pl-dv-selo{
+  flex:none; margin-top:3px; display:inline-flex; align-items:center; gap:5px;
+  font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; line-height:1.4;
+  padding:3px 9px; border-radius:999px; background:var(--fundo); color:var(--tinta-suave); border:1px solid var(--borda);
+}
+.pl-dv-selo svg{width:11px; height:11px;}
+.pl-dv-item.respondida .pl-dv-selo{background:var(--pl-ok-claro); color:var(--pl-ok); border-color:#C4E9D3;}
+.pl-dv-porque, .pl-dv-opcoes, .pl-dv-outra, .pl-dv-premissa{margin-left:40px;}
+.pl-dv-porque{font-size:12.5px; color:var(--tinta-suave); line-height:1.5; margin-top:4px;}
+.pl-dv-opcoes{margin-top:12px;}
+.pl-dv-outra{margin-top:10px; width:calc(100% - 40px);}
+.pl-dv-premissa{display:flex; align-items:flex-start; gap:7px; margin-top:10px; font-size:12px; line-height:1.5; color:var(--tinta-suave); transition:opacity .15s;}
+.pl-dv-premissa svg{width:14px; height:14px; flex:none; margin-top:2px;}
+.pl-dv-premissa b{font-weight:600; color:var(--tinta);}
+.pl-dv-item.respondida .pl-dv-premissa{opacity:.5;}
+@container miolo (max-width: 560px){
+  .pl-dv-porque, .pl-dv-opcoes, .pl-dv-outra, .pl-dv-premissa{margin-left:0;}
+  .pl-dv-outra{width:100%;}
+  .pl-dv-item{padding:14px;}
+}
+.pl-barra-progresso{gap:12px;}
+.pl-dv-trilho{width:110px; height:6px; flex:none; border-radius:6px; overflow:hidden; background:var(--fundo); border:1px solid var(--borda);}
+.pl-dv-trilho i{display:block; width:0; height:100%; border-radius:6px; background:var(--pl-ok); transition:width .25s ease;}
+.pl-barra-duvidas .pl-envio-status{flex:1 1 auto; text-align:left; color:var(--tinta);}
+
+/* ---- Progresso: etapas acima do cartão ---- */
+.pl-prog-passos{display:flex; justify-content:center; margin:6px 0 -2vh;}
+
+/* ---- Resultado: o que foi confirmado antes da análise ---- */
+.pl-dv-res{margin-top:12px; border:1px solid var(--borda); border-radius:12px; background:#FCFCFE;}
+.pl-dv-res summary{
+  cursor:pointer; list-style:none; display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  padding:10px 12px; border-radius:12px; font-size:13px; font-weight:600; color:var(--tinta);
+}
+.pl-dv-res summary::-webkit-details-marker{display:none;}
+.pl-dv-res summary::before{
+  content:''; width:6px; height:6px; flex:none; margin-left:2px;
+  border-right:2px solid var(--tinta-suave); border-bottom:2px solid var(--tinta-suave);
+  transform:rotate(-45deg); transition:transform .15s;
+}
+.pl-dv-res[open] summary::before{transform:rotate(45deg);}
+.pl-dv-res summary:hover .pl-dv-res-tit{color:var(--vermelho);}
+.pl-dv-res-cont{margin-left:auto; font-size:11px; font-weight:700; color:var(--pl-ok); background:var(--pl-ok-claro); border:1px solid #C4E9D3; border-radius:999px; padding:2px 9px;}
+.pl-dv-res-lista{padding:0 14px 12px 34px; display:flex; flex-direction:column; gap:9px; font-size:12.5px; line-height:1.5;}
+.pl-dv-res-q{font-weight:600; color:var(--tinta); overflow-wrap:anywhere;}
+.pl-dv-res-a{color:var(--tinta-suave); margin-top:1px; overflow-wrap:anywhere;}
+.pl-dv-res-a b{color:var(--pl-ok);}
+.pl-dv-res-a.premissa b{color:var(--pl-alerta);}
+
+@media (prefers-reduced-motion: reduce){
+  .pl-dv-carregando, .pl-dv-erro, .pl-tela-acoes, .pl-dv-trilho i, .pl-dv-item, .pl-dv-premissa{animation:none; transition:none;}
 }

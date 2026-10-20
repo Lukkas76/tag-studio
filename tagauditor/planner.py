@@ -49,6 +49,8 @@ from .config import (
     PLANNER_SEM_IMAGEM_SE_RECUSAR, FIGMA_MAX_FRAMES,
     PLANNER_IDENTIFICAR_IMAGENS, PLANNER_MARCACAO_POR_IMAGEM, PLANNER_MARCACAO_REFAZER,
     PLANNER_MARCACAO_PARALELAS, PLANNER_MARCACAO_REASONING_EFFORT, PLANNER_MARCACAO_MAX_TOKENS,
+    PLANNER_ESCLARECER, PLANNER_ESCLARECER_MAX_PERGUNTAS, PLANNER_ESCLARECER_REASONING_EFFORT,
+    PLANNER_ESCLARECER_MAX_TOKENS,
 )
 
 # O módulo do Figma fala com uma API externa (rede, proxy, cotas). Se ele não
@@ -76,6 +78,7 @@ MAX_CAMPO_CURTO = 300         # produto, jornada, nome da tela, telas vizinhas
 MAX_NOME_TELA = 120           # nome de cada imagem (vai em todos os rótulos)
 MAX_MAPA_METRICAS = 20000
 MAX_OBSERVACOES = 2000
+MAX_ESCLARECIMENTOS = 5       # perguntas da IA respondidas antes da análise
 MAX_ITENS_INVENTARIO = 200    # camadas do Figma por tela
 MAX_MSGS_HISTORICO_PLANNER = 30
 MAX_CHARS_HISTORICO = 400000  # ~100 mil tokens de histórico, no máximo
@@ -166,6 +169,25 @@ Você recebe UMA tela (às vezes dividida em partes) de uma análise de mensura�
 {"elementos": [
   {"id": "T1", "imagem": 1, "parte": 1, "texto": "Solicitar", "classificacao": "OBRIGATÓRIO", "decisao": "TAGUEAR", "legenda": "T1 — TAGUEAR: início da jornada", "figma_ref": null, "bbox_px": {"x": 0, "y": 0, "largura": 0, "altura": 0}, "bbox_normalizada": {"x": 0.0, "y": 0.0, "largura": 0.0, "altura": 0.0}}
 ]}
+```"""
+
+
+# Etapa de dúvidas (antes da análise): mesmas regras do time e documentação,
+# mas no lugar das instruções da análise vai este bloco ({max} é trocado por
+# PLANNER_ESCLARECER_MAX_PERGUNTAS).
+INSTRUCOES_ESCLARECIMENTO = """# ETAPA DE ESCLARECIMENTO (antes da análise) — instruções da ferramenta
+
+Esta chamada NÃO é a análise: ainda não monte KPI, tabelas, plano de eventos nem coordenadas. Olhe as imagens e o pedido e identifique o que você precisa confirmar com o usuário para definir com segurança o KPI (numerador e denominador), o evento de conversão e o escopo da jornada. Esta etapa substitui a pergunta de esclarecimento do fim do relatório: as respostas chegam junto com o pedido de análise.
+
+1. Faça no máximo {max} perguntas, e só as que mudariam materialmente a recomendação (KPI, conversão, denominador, escopo, produto, regra de negócio). Não pergunte o que dá para ver nas imagens nem o que já foi informado no pedido. Se o canal não foi informado e a taxonomia depender dele, você pode perguntar.
+2. Cada pergunta: uma frase curta e direta; "opcoes" com 2 a 4 respostas prováveis, curtas e mutuamente exclusivas; "por_que" em uma frase (o que muda na recomendação); "premissa" = o que você vai assumir se o usuário não responder.
+3. "entendimento": uma ou duas frases com o que você entendeu das telas e do objetivo (produto, jornada e o que parece ser a conversão).
+4. Sem dúvida que mude a recomendação, devolva "perguntas": [].
+5. Não transcreva dados pessoais que aparecerem nas imagens.
+6. Responda SOMENTE com um bloco cercado por ```esclarecimento e ```, com JSON válido (aspas duplas, sem comentários):
+
+```esclarecimento
+{"entendimento": "...", "perguntas": [{"pergunta": "...", "por_que": "...", "opcoes": ["...", "..."], "premissa": "..."}]}
 ```"""
 
 
@@ -317,6 +339,8 @@ def config_frontend():
         "proporcaoParte": PROPORCAO_PARTE,
         "maxPartesPorTela": MAX_PARTES_POR_TELA,
         "identificarImagens": bool(PLANNER_IDENTIFICAR_IMAGENS),
+        "esclarecer": bool(PLANNER_ESCLARECER),
+        "maxPerguntas": int(PLANNER_ESCLARECER_MAX_PERGUNTAS or 0),
     }
 
 
@@ -478,7 +502,28 @@ def validar_contexto(contexto):
         "tela_seguinte": _texto(ctx.get("tela_seguinte"), MAX_CAMPO_CURTO, linha_unica=True),
         "mapa_metricas": _texto(ctx.get("mapa_metricas"), MAX_MAPA_METRICAS),
         "observacoes": _texto(ctx.get("observacoes"), MAX_OBSERVACOES),
+        "esclarecimentos": _validar_esclarecimentos(ctx.get("esclarecimentos")),
     }
+
+
+def _validar_esclarecimentos(lista):
+    """Dúvidas da IA com a resposta da pessoa (ou só a premissa, se pulou):
+    [{"pergunta", "resposta", "premissa"}]. Item sem pergunta é ignorado."""
+    if not isinstance(lista, list):
+        return []
+    saida = []
+    for item in lista[:MAX_ESCLARECIMENTOS]:
+        if not isinstance(item, dict):
+            continue
+        pergunta = _texto(item.get("pergunta"), 300, linha_unica=True)
+        if not pergunta:
+            continue
+        saida.append({
+            "pergunta": pergunta,
+            "resposta": _texto(item.get("resposta"), 1000),
+            "premissa": _texto(item.get("premissa"), 300, linha_unica=True),
+        })
+    return saida
 
 
 def _bbox_inventario(valor):
@@ -897,19 +942,41 @@ def montar_texto_contexto(contexto, telas):
     linhas = [
         "## Pedido de análise de mensuração",
         "**Pergunta de negócio:** " + contexto["pergunta"],
-        "**Produto:** " + valor("produto"),
-        "**Jornada:** " + valor("jornada"),
-        "**Nome da tela:** " + valor("tela"),
+    ]
+    # Produto, jornada, telas vizinhas e observações não estão mais no
+    # formulário (a IA confirma nas dúvidas): só entram quando vierem
+    # preenchidos (análises antigas reabertas com "Duplicar e editar").
+    for campo, rotulo in (("produto", "Produto"), ("jornada", "Jornada"),
+                          ("tela", "Nome da tela")):
+        if contexto.get(campo):
+            linhas.append("**{}:** {}".format(rotulo, contexto[campo]))
+    linhas.extend([
         "**Canal:** " + (contexto.get("canal") or CANAL_NAO_INFORMADO),
         "**Plataforma:** " + valor("plataforma"),
-        "**Tela anterior:** " + valor("tela_anterior"),
-        "**Próxima tela:** " + valor("tela_seguinte"),
-        "**Observações:** " + valor("observacoes"),
+    ])
+    for campo, rotulo in (("tela_anterior", "Tela anterior"), ("tela_seguinte", "Próxima tela"),
+                          ("observacoes", "Observações")):
+        if contexto.get(campo):
+            linhas.append("**{}:** {}".format(rotulo, contexto[campo]))
+    linhas.extend([
         "**Mapa de métricas existente:**",
         _bloco_codigo(mapa) if mapa else NAO_INFORMADO,
-        "",
-        "## Imagens enviadas (ordem da jornada)",
-    ]
+    ])
+    esclarecimentos = contexto.get("esclarecimentos") or []
+    if esclarecimentos:
+        linhas.extend(["", "## Esclarecimentos antes da análise",
+                       "Dúvidas que você levantou ao ver as telas e o que o usuário respondeu. "
+                       "Trate as respostas como fatos confirmados. Na seção \"Premissas e "
+                       "dúvidas\", separe o que o usuário confirmou do que foi suposto, e não "
+                       "repita perguntas já respondidas."])
+        for n, item in enumerate(esclarecimentos, 1):
+            linhas.append("{}. **{}**".format(n, item["pergunta"]))
+            if item["resposta"]:
+                linhas.append("   - Resposta do usuário: " + item["resposta"].replace("\n", " "))
+            else:
+                linhas.append("   - Sem resposta. Premissa assumida: " +
+                              (item["premissa"] or "use o seu melhor julgamento e registre-o"))
+    linhas.extend(["", "## Imagens enviadas (ordem da jornada)"])
     for tela in telas:
         linhas.extend(_linhas_tela(tela))
     sem_imagem = [str(t["indice"]) for t in telas if not t["partes"]]
@@ -1700,7 +1767,9 @@ def _info_analise():
             "telas_sem_imagem": 0,
             # marcação (só na análise): ver _registrar_analise
             "elementos_analise": "", "marcacao_descartados": 0, "marcacao_chamadas": 0,
-            "marcacao_refeitas": 0, "marcacao_falhas": 0}
+            "marcacao_refeitas": 0, "marcacao_falhas": 0,
+            # dúvidas da IA antes da análise (etapa "esclarecer")
+            "duvidas": 0, "duvidas_respondidas": 0}
 
 
 def _contagem_por_tela(marcacao, n_telas):
@@ -1752,6 +1821,9 @@ def _registrar_analise(usuario, ip, info, status, inicio, uso=None, marcacao=Non
                 if info[chave]:
                     campos[chave] = info[chave]
     campos["sem_imagem"] = bool(info["sem_imagem"])
+    if info["duvidas"]:
+        campos["duvidas"] = info["duvidas"]
+        campos["duvidas_respondidas"] = info["duvidas_respondidas"]
     if info["telas_sem_imagem"]:
         # Telas do Figma que vieram só com camadas (proxy barrou o PNG)
         campos["telas_sem_imagem"] = info["telas_sem_imagem"]
@@ -1786,7 +1858,9 @@ def _fazer_analise(dados, info):
     contexto = validar_contexto(dados.get("contexto"))
     info.update(canal=contexto["canal"], plataforma=contexto["plataforma"],
                 produto_analisado=contexto["produto"], jornada=contexto["jornada"],
-                pergunta=contexto["pergunta"][:300])
+                pergunta=contexto["pergunta"][:300],
+                duvidas=len(contexto["esclarecimentos"]),
+                duvidas_respondidas=sum(1 for e in contexto["esclarecimentos"] if e["resposta"]))
     telas, bytes_imagens = validar_telas(dados.get("telas"))
     so_camadas = [t for t in telas if not t["partes"]]
     info.update(telas=len(telas), partes=sum(len(t["partes"]) for t in telas),
@@ -1899,13 +1973,17 @@ def rota_analisar(dados, usuario, ip):
         info["sessao"] = _texto(dados.get("session_id"), 80, linha_unica=True)
         modo = _texto(dados.get("modo"), 20, linha_unica=True).lower() or "analise"
         info["modo"] = modo
+        if modo == "esclarecer":
+            # Etapa própria, com linha própria no log (não conta como análise)
+            return rota_esclarecer(dados, usuario, ip)
         if modo == "analise":
             corpo, uso, estado = _fazer_analise(dados, info)
         elif modo == "pergunta":
             corpo, uso, estado = _responder_pergunta(dados, info)
         else:
-            raise ErroPlanner('Modo inválido: use "analise" (análise nova) ou "pergunta" '
-                              '(pergunta de acompanhamento).')
+            raise ErroPlanner('Modo inválido: use "esclarecer" (dúvidas antes da análise), '
+                              '"analise" (análise nova) ou "pergunta" (pergunta de '
+                              'acompanhamento).')
         _registrar_analise(usuario, ip, info, "ok", inicio, uso=uso,
                            marcacao=corpo["marcacao"], estado=estado)
         elementos = len((corpo["marcacao"] or {}).get("elementos") or [])
@@ -1925,6 +2003,150 @@ def rota_analisar(dados, usuario, ip):
         _console("[planner][erro] Falha inesperada: {!r}".format(e))
         return 500, {"erro": "Erro interno ao processar a análise: {}".format(
             _detalhe_erro(e)[:200])}
+
+
+# ---- Etapa "esclarecer": dúvidas da IA antes da análise ---------------------------
+_RE_ABRE_ESCLARECIMENTO = re.compile(r"(`{3,}|~{3,})[ \t]*esclarecimento\b", re.IGNORECASE)
+_RE_TEM_PERGUNTAS = re.compile(r"perguntas|questions", re.IGNORECASE)
+
+
+def _system_prompt_esclarecimento():
+    """Regras do time + documentação, com as instruções da etapa de dúvidas no
+    lugar das instruções da análise (marcação, formato do bloco)."""
+    base = obter_system_prompt()
+    if base.endswith(INSTRUCOES_FERRAMENTA):
+        base = base[:-len(INSTRUCOES_FERRAMENTA)]
+    else:
+        base += SEPARADOR_PROMPT
+    return base + INSTRUCOES_ESCLARECIMENTO.replace(
+        "{max}", str(max(1, int(PLANNER_ESCLARECER_MAX_PERGUNTAS or 1))))
+
+
+def _normalizar_esclarecimento(objeto):
+    """{"entendimento", "perguntas": [{"id", "pergunta", "por_que", "opcoes",
+    "premissa"}]} a partir do que o modelo devolveu, ou None."""
+    if isinstance(objeto, list):
+        objeto = {"perguntas": objeto}
+    if not isinstance(objeto, dict):
+        return None
+    d = {str(k).strip().lower(): v for k, v in objeto.items()}
+    brutas = _primeiro(d, ("perguntas", "questions", "duvidas", "dúvidas"))
+    if not isinstance(brutas, list):
+        brutas = []
+    limite = max(1, int(PLANNER_ESCLARECER_MAX_PERGUNTAS or 1))
+    perguntas = []
+    for bruta in brutas:
+        if isinstance(bruta, str):
+            bruta = {"pergunta": bruta}
+        if not isinstance(bruta, dict):
+            continue
+        b = {str(k).strip().lower(): v for k, v in bruta.items()}
+        texto = _texto(_primeiro(b, ("pergunta", "question", "texto")), 300, linha_unica=True)
+        if not texto:
+            continue
+        opcoes_brutas = _primeiro(b, ("opcoes", "opções", "options", "respostas"))
+        opcoes = []
+        for o in opcoes_brutas if isinstance(opcoes_brutas, list) else []:
+            o = _texto(o, 120, linha_unica=True)
+            if o and o not in opcoes:
+                opcoes.append(o)
+        perguntas.append({
+            "id": "P{}".format(len(perguntas) + 1),
+            "pergunta": texto,
+            "por_que": _texto(_primeiro(b, ("por_que", "porque", "motivo", "why")), 300,
+                              linha_unica=True),
+            "opcoes": opcoes[:4],
+            "premissa": _texto(_primeiro(b, ("premissa", "assumption", "suposicao")), 300,
+                               linha_unica=True),
+        })
+        if len(perguntas) >= limite:
+            break
+    entendimento = _texto(_primeiro(d, ("entendimento", "resumo", "understanding")), 600)
+    return {"entendimento": entendimento, "perguntas": perguntas}
+
+
+def extrair_esclarecimento(texto):
+    """Lê o bloco ```esclarecimento (ou o último ```json com "perguntas", ou o
+    texto inteiro como JSON). None se nada servir."""
+    if not isinstance(texto, str) or not texto.strip():
+        return None
+    normalizado = texto.replace("\r\n", "\n").replace("\r", "\n")
+    blocos = _blocos_cercados(normalizado, _RE_ABRE_ESCLARECIMENTO)
+    if not blocos:
+        blocos = [b for b in _blocos_cercados(normalizado, _RE_ABRE_JSON)
+                  if _RE_TEM_PERGUNTAS.search(b[2])]
+    candidatos = [b[2] for b in blocos[::-1]] or [normalizado]
+    for corpo in candidatos:
+        objeto, _motivo = _carregar_json_tolerante(corpo)
+        resultado = _normalizar_esclarecimento(objeto)
+        if resultado is not None:
+            return resultado
+    return None
+
+
+def rota_esclarecer(dados, usuario, ip):
+    """Modo "esclarecer" do POST /api/planner/analisar: a IA vê as telas e o
+    pedido e devolve até PLANNER_ESCLARECER_MAX_PERGUNTAS dúvidas. Nunca
+    levanta; grava uma linha planner_esclarecimento no log."""
+    inicio = time.time()
+    campos = {"sessao": _texto(dados.get("session_id"), 80, linha_unica=True),
+              "status": "erro", "telas": 0, "partes": 0, "perguntas": 0}
+    uso = None
+    try:
+        if not PLANNER_ESCLARECER:
+            raise ErroPlanner("A etapa de dúvidas está desligada neste servidor "
+                              "(PLANNER_ESCLARECER no config.py).")
+        contexto = validar_contexto(dados.get("contexto"))
+        campos.update(canal=contexto["canal"], pergunta=contexto["pergunta"][:300])
+        telas, bytes_imagens = validar_telas(dados.get("telas"))
+        campos.update(telas=len(telas), partes=sum(len(t["partes"]) for t in telas),
+                      bytes_imagens=bytes_imagens)
+        conteudo, _texto_ctx, _uc = montar_mensagem_analise(contexto, telas, PLANNER_DETALHE_IMAGEM)
+        campos["caracteres"] = caracteres_de_texto(conteudo)
+        _console("[planner] Preparando as dúvidas: {} tela(s) / {} parte(s) - sessão {}".format(
+            campos["telas"], campos["partes"], campos["sessao"] or "-"))
+        try:
+            texto, uso = bridge.gerar_texto(
+                [{"role": "user", "content": conteudo}], _system_prompt_esclarecimento(),
+                modelo=PLANNER_MODELO_LLM, max_tokens=PLANNER_ESCLARECER_MAX_TOKENS,
+                reasoning_effort=PLANNER_ESCLARECER_REASONING_EFFORT or "",
+                rotulo="planner-esclarecimento",
+                tokens_extra_estimados=estimar_tokens_telas(telas, PLANNER_DETALHE_IMAGEM))
+        except ErroPlanner:
+            raise
+        except Exception as e:
+            raise ErroPlanner("Não consegui preparar as dúvidas com a IA: {}".format(
+                _detalhe_erro(e)), 502)
+        resultado = extrair_esclarecimento(texto)
+        aviso = None
+        if resultado is None:
+            resultado = {"entendimento": "", "perguntas": []}
+            aviso = ("A IA não devolveu as dúvidas no formato esperado. Dá para seguir direto "
+                     "para a análise.")
+        campos.update(status="ok", perguntas=len(resultado["perguntas"]),
+                      formato="ok" if aviso is None else "invalido")
+        corpo = {"entendimento": resultado["entendimento"], "perguntas": resultado["perguntas"],
+                 "aviso": aviso}
+        status = 200
+    except ErroPlanner as e:
+        campos["erro"] = str(e)[:200]
+        corpo, status = {"erro": str(e)}, e.status
+    except Exception as e:
+        campos["erro"] = _detalhe_erro(e)[:200]
+        _console("[planner][erro] Falha inesperada nas dúvidas: {!r}".format(e))
+        corpo, status = {"erro": "Erro interno ao preparar as dúvidas: {}".format(
+            _detalhe_erro(e)[:200])}, 500
+    campos["duracao_s"] = round(time.time() - inicio, 1)
+    if uso:
+        campos["tokens_entrada"] = uso.get("entrada", 0)
+        campos["tokens_saida"] = uso.get("saida", 0)
+        campos["tokens_total"] = uso.get("total", 0)
+        campos["tokens_fonte"] = uso.get("fonte", "")
+    atividade.registrar("planner_esclarecimento", usuario, ip, **campos)
+    if status == 200:
+        _console("[planner] Dúvidas prontas em {:.1f}s: {} pergunta(s).".format(
+            campos["duracao_s"], campos["perguntas"]))
+    return status, corpo
 
 
 # ---- Rota: POST /api/planner/figma -------------------------------------------

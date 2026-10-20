@@ -85,6 +85,7 @@
     feedback: 'Feedback',
     planner_analise: 'Análise (Planner)',
     planner_figma: 'Figma (Planner)',
+    planner_esclarecimento: 'Dúvidas (Planner)',
     login: 'Login',
     login_falha: 'Falha de login',
     logout: 'Logout',

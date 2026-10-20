@@ -35,7 +35,6 @@
     'Classificando os elementos das telas',
     'Montando o plano mínimo de mensuração',
     'Calculando as coordenadas da marcação',
-    'Conferindo a marcação de cada tela',
     'Revisando o relatório'
   ];
   var SEG_POR_ETAPA = 12;
@@ -45,14 +44,19 @@
   var LS_TOKEN_FIGMA = 'tagplanner_figma_token';
 
   var ROTULO_ORIGEM = { upload: 'Upload', figma: 'Figma', colada: 'Colada' };
-  var CAMPOS = {
-    pergunta: 'campoPergunta', produto: 'campoProduto', jornada: 'campoJornada', tela: 'campoTela',
-    tela_anterior: 'campoTelaAnterior', tela_seguinte: 'campoTelaSeguinte',
-    mapa_metricas: 'campoMapa', observacoes: 'campoObs'
-  };
+  // Campos do formulário. Produto, jornada, telas vizinhas e observações saíram
+  // (a IA confirma nas dúvidas); quando uma análise antiga é reaberta, eles
+  // seguem no contexto sem aparecer (rascunho.contextoBase).
+  var CAMPOS = { pergunta: 'campoPergunta', mapa_metricas: 'campoMapa' };
 
-  var SVG_SUBIR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"></path></svg>';
-  var SVG_DESCER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
+  // telas em grade: "subir/descer" = antes/depois na jornada (setas laterais)
+  var SVG_SUBIR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg>';
+  var SVG_DESCER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>';
+  var SVG_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"></path></svg>';
+  var SVG_SETA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>';
+  var SVG_VOLTAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m11 18-6-6 6-6"></path></svg>';
+  var SVG_IDEIA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"></path></svg>';
+  var SVG_PREMISSA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>';
   var SVG_REMOVER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
   var SVG_LAPIS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>';
   var SVG_LIXEIRA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>';
@@ -77,8 +81,12 @@
     relogio: null,
     visualizador: null,
     avisoSaida: false,
-    coladas: 0
+    coladas: 0,
+    duvidas: null,          // etapa de dúvidas aberta: {id, ctx, telas, envio, fase, dados, ...}
+    esclarecendo: false,    // pedido de dúvidas em andamento
+    relogioDuvidas: null
   };
+  var seqDuvidas = 0;
 
   // ---- utilitários ----------------------------------------------------------
   function porId(id){ return document.getElementById(id); }
@@ -140,11 +148,14 @@
   // ---- rascunho do formulário ------------------------------------------------
   function contextoVazio(){
     return { pergunta: '', produto: '', jornada: '', tela: '', canal: '', plataforma: '',
-             tela_anterior: '', tela_seguinte: '', mapa_metricas: '', observacoes: '' };
+             tela_anterior: '', tela_seguinte: '', mapa_metricas: '', observacoes: '',
+             esclarecimentos: [] };
   }
   // modo: null (nova) | 'duplicar' | 'editar' (refaz um registro com erro).
+  // contextoBase: o contexto de onde o formulário partiu (campos que não
+  // aparecem mais na tela continuam valendo numa análise antiga reaberta).
   function novoRascunho(){
-    return { telas: [], modo: null, base: null, origemTitulo: '' };
+    return { telas: [], modo: null, base: null, origemTitulo: '', contextoBase: contextoVazio() };
   }
   function copiaTela(t){
     return {
@@ -165,6 +176,10 @@
   }
   function lerContexto(){
     var c = contextoVazio();
+    var base = (rascunho && rascunho.contextoBase) || {};
+    for (var b in c){
+      if (Object.prototype.hasOwnProperty.call(c, b) && typeof base[b] === 'string') c[b] = base[b];
+    }
     for (var k in CAMPOS){
       if (Object.prototype.hasOwnProperty.call(CAMPOS, k)) c[k] = porId(CAMPOS[k]).value.trim();
     }
@@ -174,16 +189,23 @@
   }
   function preencherContexto(c){
     c = c || contextoVazio();
+    if (rascunho){
+      rascunho.contextoBase = copiar(c);
+      rascunho.contextoBase.esclarecimentos = [];   // as dúvidas são refeitas a cada análise
+    }
     for (var k in CAMPOS){
       if (Object.prototype.hasOwnProperty.call(CAMPOS, k)) porId(CAMPOS[k]).value = c[k] || '';
     }
     marcarRadio('canal', c.canal);
     marcarRadio('plataforma', c.plataforma);
+    porId('detalhesMapa').open = !!c.mapa_metricas;
   }
   function rascunhoTemConteudo(){
     var c = lerContexto();
     if (rascunho.telas.length) return true;
-    for (var k in c){ if (Object.prototype.hasOwnProperty.call(c, k) && c[k]) return true; }
+    for (var k in c){
+      if (Object.prototype.hasOwnProperty.call(c, k) && typeof c[k] === 'string' && c[k]) return true;
+    }
     return false;
   }
 
@@ -331,7 +353,7 @@
   // =====================================================================
   function trocarVista(nome, focar){
     estado.vista = nome;
-    ['form', 'progresso', 'erro', 'resultado'].forEach(function(v){
+    ['form', 'duvidas', 'progresso', 'erro', 'resultado'].forEach(function(v){
       var el = porId('vista' + v.charAt(0).toUpperCase() + v.slice(1));
       if (el) el.hidden = (v !== nome);
     });
@@ -358,6 +380,7 @@
   }
 
   function mostrarForm(focar){
+    descartarDuvidas();
     estado.atualId = null;
     marcarHash(null);
     destruirVisualizador();
@@ -419,11 +442,11 @@
   }
   // Texto do aviso que o "Sair" mostra antes de derrubar a sessão (sessao.js).
   TA.trabalhoPendente = function(){
-    return (estado.ocupado || estado.preparando)
+    return (estado.ocupado || estado.preparando || estado.esclarecendo)
       ? 'Há uma análise ou pergunta do Planner em andamento e ela será interrompida.' : '';
   };
   function atualizarAvisoSaida(){
-    var precisa = estado.ocupado || estado.preparando;
+    var precisa = estado.ocupado || estado.preparando || estado.esclarecendo;
     if (precisa && !estado.avisoSaida){
       window.addEventListener('beforeunload', aoSairDaPagina);
       estado.avisoSaida = true;
@@ -589,8 +612,8 @@
 
   function rotularAcoesTela(li, nome){
     var rotulos = {
-      'pl-mover-cima': 'Mover “' + nome + '” para cima',
-      'pl-mover-baixo': 'Mover “' + nome + '” para baixo',
+      'pl-mover-cima': 'Mover “' + nome + '” para antes',
+      'pl-mover-baixo': 'Mover “' + nome + '” para depois',
       'pl-remover': 'Remover “' + nome + '”'
     };
     for (var classe in rotulos){
@@ -609,15 +632,15 @@
       var li = mk('li', 'pl-tela');
       li.setAttribute('data-uid', t.uid);
 
-      var num = mk('span', 'pl-tela-num', String(i + 1));
-      num.setAttribute('aria-hidden', 'true');
-      li.appendChild(num);
-
+      // miniatura com o número na jornada e as ações por cima
       var thumb = mk('div', 'pl-tela-thumb');
       var img = document.createElement('img');
       img.src = t.dataUrl;
       img.alt = '';
       thumb.appendChild(img);
+      var num = mk('span', 'pl-tela-num', String(i + 1));
+      num.setAttribute('aria-hidden', 'true');
+      thumb.appendChild(num);
       li.appendChild(thumb);
 
       var info = mk('div', 'pl-tela-info');
@@ -659,7 +682,7 @@
       info.appendChild(meta);
       li.appendChild(info);
 
-      var acoes = mk('div', 'pl-tela-acoes');
+      var acoes = mk('div', 'pl-tela-acoes');      // fica sobre a miniatura (CSS)
       var cima = botaoIcone('pl-mover-cima', SVG_SUBIR, function(){ moverTela(rascunho.telas.indexOf(t), -1); });
       var baixo = botaoIcone('pl-mover-baixo', SVG_DESCER, function(){ moverTela(rascunho.telas.indexOf(t), 1); });
       var rem = botaoIcone('pl-remover', SVG_REMOVER, function(){ removerTela(rascunho.telas.indexOf(t)); });
@@ -668,7 +691,7 @@
       acoes.appendChild(cima);
       acoes.appendChild(baixo);
       acoes.appendChild(rem);
-      li.appendChild(acoes);
+      thumb.appendChild(acoes);
       rotularAcoesTela(li, t.nome || ('tela ' + (i + 1)));
       ol.appendChild(li);
     });
@@ -681,6 +704,7 @@
     var drop = porId('dropzone');
     var cheio = telas.length >= cfg.maxTelas;
     drop.classList.toggle('pl-desligado', cheio);
+    drop.classList.toggle('pl-drop-compacto', telas.length > 0);   // com telas, a área encolhe
     drop.setAttribute('aria-disabled', cheio ? 'true' : 'false');
 
     var nota = porId('notaPartes');
@@ -997,17 +1021,18 @@
   // Formulário: contexto e envio
   // =====================================================================
   function atualizarEnvio(){
-    var btn = porId('btnAnalisar'), st = porId('envioStatus');
+    var btn = porId('btnAnalisar'), sem = porId('btnSemPerguntas'), st = porId('envioStatus');
     if (!btn || !rascunho) return;
     var ctx = lerContexto();
     var faltas = [];
     if (!rascunho.telas.length) faltas.push('adicione pelo menos 1 tela');
     if (!ctx.pergunta) faltas.push('escreva a pergunta de negócio');
-    btn.disabled = faltas.length > 0 || estado.ocupado || estado.preparando || estado.processando > 0;
+    btn.disabled = faltas.length > 0 || ocupadoParaEnviar();
+    sem.disabled = btn.disabled;
     if (estado.preparando) st.textContent = 'Preparando as imagens…';
     else if (estado.ocupado) st.textContent = 'Aguarde: há uma análise ou pergunta em andamento.';
     else if (estado.processando) st.textContent = 'Processando as imagens…';
-    else if (faltas.length) st.textContent = 'Para analisar, ' + faltas.join(' e ') + '.';
+    else if (faltas.length) st.textContent = 'Para continuar, ' + faltas.join(' e ') + '.';
     else {
       var plano = IMG.planejarEnvio(rascunho.telas, cfg);
       st.textContent = plural(rascunho.telas.length, 'tela', 'telas') + ' · ' +
@@ -1095,86 +1120,520 @@
     });
   }
 
-  function analisar(){
-    if (estado.ocupado || estado.preparando || estado.processando) return;
+  function ocupadoParaEnviar(){
+    return estado.ocupado || estado.preparando || estado.processando > 0 || estado.esclarecendo;
+  }
+
+  // Lê o formulário: {ctx, telas} pronto para enviar, ou null (e mostra o que falta)
+  function coletarPedido(){
     var ctx = lerContexto();
     if (!rascunho.telas.length || !ctx.pergunta){
       atualizarEnvio();
       if (!ctx.pergunta) porId('campoPergunta').focus();
-      return;
+      return null;
     }
     mensagem('envioMsg', '');
-    var telas = rascunho.telas.map(function(t){
+    var telas = rascunho.telas.map(function(t, i){
       var c = copiaTela(t);
-      c.nome = (t.nome || '').replace(/\s+/g, ' ').trim() || ('Tela ' + (rascunho.telas.indexOf(t) + 1));
+      c.nome = (t.nome || '').replace(/\s+/g, ' ').trim() || ('Tela ' + (i + 1));
       delete c.uid;
       return c;
     });
+    return { ctx: ctx, telas: telas };
+  }
+
+  // Gera as imagens de envio (o botão mostra "Preparando…" enquanto isso)
+  function prepararImagens(pedido, botao){
     estado.preparando = true;
-    var btn = porId('btnAnalisar');
-    var rotulo = btn.innerHTML;
-    btn.innerHTML = '<span class="pl-giro" aria-hidden="true"></span>Preparando…';
+    var rotulo = botao.innerHTML;
+    botao.innerHTML = '<span class="pl-giro" aria-hidden="true"></span>Preparando…';
     atualizarEnvio();
     atualizarAvisoSaida();
-
-    IMG.prepararEnvio(telas, cfg).then(function(envio){
+    function fim(){
       estado.preparando = false;
-      btn.innerHTML = rotulo;
-      var agora = Date.now();
-      var base = rascunho.base;
-      // Rede de segurança: a análise em "Editar" pode ter sido concluída por
-      // outro caminho; resultado bom nunca é sobrescrito (vira análise nova).
-      var resumoBase = base ? STORE.resumo(base.id) : null;
-      if (resumoBase && resumoBase.status === 'ok') base = null;
-      var reg = {
-        id: base ? base.id : gerarId('p'),
-        criadoEm: base ? (base.criadoEm || agora) : agora,
-        atualizadoEm: agora,
-        titulo: (base && base.tituloManual) ? base.titulo : tituloDe(ctx.pergunta),
-        tituloManual: !!(base && base.tituloManual),
-        status: 'pendente',
-        contexto: ctx,
-        telas: telas,
-        mensagens: [],
-        marcacao: null,
-        marcacaoErro: null,
-        aviso: null,
-        erro: null
-      };
-      aplicarGeometria(reg, envio);
-      // O formulário fica livre para a próxima; se falhar, "Editar" devolve tudo.
-      limparFormulario(false);
-      estado.atualId = reg.id;
-      marcarHash(reg.id);
-      STORE.salvar(reg);
-      executarAnalise(reg, envio);
-    }, function(e){
-      estado.preparando = false;
-      btn.innerHTML = rotulo;
-      mensagem('envioMsg', mensagemErro(e), 'erro');
+      botao.innerHTML = rotulo;
       atualizarEnvio();
       atualizarAvisoSaida();
+    }
+    return IMG.prepararEnvio(pedido.telas, cfg).then(function(envio){
+      fim();
+      return envio;
+    }, function(e){
+      fim();
+      mensagem('envioMsg', mensagemErro(e), 'erro');
+      throw e;
     });
   }
 
-  function corpoAnalise(reg, envio){
-    return {
-      session_id: reg.id,
-      modo: 'analise',
-      contexto: reg.contexto,
-      telas: reg.telas.map(function(t, i){
-        return {
-          indice: i + 1,
-          nome: t.nome,
-          origem: t.origem,
-          largura: t.largura,
-          altura: t.altura,
-          figma: t.figma ? { file_key: t.figma.file_key, node_id: t.figma.node_id,
-                             inventario: t.figma.inventario || [] } : null,
-          partes: envio.telas[i].partes
-        };
-      })
+  // "Continuar": com a etapa ligada, a IA levanta as dúvidas antes da análise
+  function continuar(){
+    if (!cfg.esclarecer){ analisar(); return; }
+    if (ocupadoParaEnviar()) return;
+    var pedido = coletarPedido();
+    if (!pedido) return;
+    prepararImagens(pedido, porId('btnAnalisar')).then(function(envio){
+      pedirDuvidas(pedido, envio);
+    }, function(){});
+  }
+
+  // "Analisar sem perguntas" (ou etapa desligada): direto para a análise
+  function analisar(){
+    if (ocupadoParaEnviar()) return;
+    var pedido = coletarPedido();
+    if (!pedido) return;
+    var botao = cfg.esclarecer ? porId('btnSemPerguntas') : porId('btnAnalisar');
+    prepararImagens(pedido, botao).then(function(envio){
+      iniciarAnalise(pedido.ctx, pedido.telas, envio);
+    }, function(){});
+  }
+
+  // Cria o registro (histórico) e dispara a análise. `idPreferido` liga a
+  // análise ao pedido de dúvidas no log (mesma sessão).
+  function iniciarAnalise(ctx, telas, envio, idPreferido){
+    if (estado.ocupado){
+      notificar('Aguarde a análise em andamento terminar.');
+      return;
+    }
+    var agora = Date.now();
+    var base = rascunho.base;
+    // Rede de segurança: a análise em "Editar" pode ter sido concluída por
+    // outro caminho; resultado bom nunca é sobrescrito (vira análise nova).
+    var resumoBase = base ? STORE.resumo(base.id) : null;
+    if (resumoBase && resumoBase.status === 'ok') base = null;
+    var reg = {
+      id: base ? base.id : (idPreferido || gerarId('p')),
+      criadoEm: base ? (base.criadoEm || agora) : agora,
+      atualizadoEm: agora,
+      titulo: (base && base.tituloManual) ? base.titulo : tituloDe(ctx.pergunta),
+      tituloManual: !!(base && base.tituloManual),
+      status: 'pendente',
+      contexto: ctx,
+      telas: telas,
+      mensagens: [],
+      marcacao: null,
+      marcacaoErro: null,
+      aviso: null,
+      erro: null
     };
+    aplicarGeometria(reg, envio);
+    // O formulário fica livre para a próxima; se falhar, "Editar" devolve tudo.
+    limparFormulario(false);
+    estado.atualId = reg.id;
+    marcarHash(reg.id);
+    STORE.salvar(reg);
+    executarAnalise(reg, envio);
+  }
+
+  // =====================================================================
+  // Etapas (indicador no topo do formulário, das dúvidas e do progresso)
+  // =====================================================================
+  function preencherPassos(ol, ativo){
+    ol.innerHTML = '';
+    var lista = [{ k: 'form', t: 'Telas e objetivo' }];
+    if (cfg.esclarecer) lista.push({ k: 'duvidas', t: 'Dúvidas da IA' });
+    lista.push({ k: 'analise', t: 'Plano e marcação' });
+    var atual = 0;
+    lista.forEach(function(p, i){ if (p.k === ativo) atual = i; });
+    lista.forEach(function(p, i){
+      var li = mk('li', i < atual ? 'feito' : (i === atual ? 'ativo' : null));
+      if (i === atual) li.setAttribute('aria-current', 'step');
+      var n = mk('span', 'pl-passo-n');
+      if (i < atual) n.innerHTML = SVG_CHECK; else n.textContent = String(i + 1);
+      li.appendChild(n);
+      li.appendChild(mk('span', 'pl-passo-t', p.t));
+      ol.appendChild(li);
+    });
+  }
+  function passosEl(ativo){
+    var ol = mk('ol', 'pl-passos');
+    ol.setAttribute('aria-label', 'Etapas da análise');
+    preencherPassos(ol, ativo);
+    return ol;
+  }
+
+  // =====================================================================
+  // Vista: dúvidas da IA (antes da análise)
+  // =====================================================================
+  function corpoTelas(telas, envio){
+    return telas.map(function(t, i){
+      return {
+        indice: i + 1,
+        nome: t.nome,
+        origem: t.origem,
+        largura: t.largura,
+        altura: t.altura,
+        figma: t.figma ? { file_key: t.figma.file_key, node_id: t.figma.node_id,
+                           inventario: t.figma.inventario || [] } : null,
+        partes: envio.telas[i].partes
+      };
+    });
+  }
+
+  function pedirDuvidas(pedido, envio, mesmaEtapa){
+    var d = mesmaEtapa || { id: gerarId('p'), ctx: pedido.ctx, telas: pedido.telas, envio: envio,
+                            respostas: {} };
+    d.seq = ++seqDuvidas;
+    d.fase = 'carregando';
+    d.dados = null;
+    d.erro = null;
+    d.inicio = Date.now();
+    estado.duvidas = d;
+    estado.esclarecendo = true;
+    atualizarEnvio();
+    atualizarAvisoSaida();
+    mostrarDuvidas(true);
+    TA.api.plannerAnalisar({ session_id: d.id, modo: 'esclarecer', contexto: d.ctx,
+                             telas: corpoTelas(d.telas, d.envio) })
+    .then(function(res){
+      if (!res.ok) throw erroDeResposta(res);
+      var dados = res.dados || {};
+      if (estado.duvidas !== d || d.seq !== seqDuvidas) return;
+      d.dados = {
+        entendimento: String(dados.entendimento || ''),
+        perguntas: (Array.isArray(dados.perguntas) ? dados.perguntas : []).filter(function(p){
+          return p && typeof p === 'object' && p.pergunta;
+        }),
+        aviso: dados.aviso || null
+      };
+      d.fase = 'pronto';
+    }).catch(function(e){
+      if (estado.duvidas !== d || d.seq !== seqDuvidas) return;
+      d.fase = 'erro';
+      d.erro = mensagemErro(e);
+    }).then(function(){
+      if (estado.duvidas !== d || d.seq !== seqDuvidas) return;
+      estado.esclarecendo = false;
+      atualizarEnvio();
+      atualizarAvisoSaida();
+      if (d.fase === 'pronto' && !d.dados.perguntas.length && !d.dados.aviso){
+        // Sem dúvidas que mudem a recomendação: segue direto para a análise
+        estado.duvidas = null;
+        pararRelogioDuvidas();
+        notificar('A IA não teve dúvidas sobre as telas: a análise já começou.');
+        iniciarAnalise(d.ctx, d.telas, d.envio, d.id);
+        return;
+      }
+      if (estado.vista === 'duvidas') renderDuvidas(true);
+    });
+  }
+
+  // Abandona a etapa de dúvidas (a resposta que ainda chegar é ignorada)
+  function descartarDuvidas(){
+    if (!estado.duvidas && !estado.esclarecendo) return;
+    estado.duvidas = null;
+    estado.esclarecendo = false;
+    seqDuvidas++;
+    pararRelogioDuvidas();
+    atualizarAvisoSaida();
+  }
+  function voltarParaEditar(){
+    mostrarForm(true);        // o rascunho continua no formulário
+  }
+
+  function respostaDe(d, p){
+    var r = d.respostas[p.id] || {};
+    return ((r.texto || '').trim() || r.opcao || '');
+  }
+  function analisarComRespostas(){
+    var d = estado.duvidas;
+    if (!d || d.fase !== 'pronto') return;
+    var ctx = copiar(d.ctx);
+    ctx.esclarecimentos = d.dados.perguntas.map(function(p){
+      return { pergunta: p.pergunta, resposta: cortarTexto(respostaDe(d, p), 1000), premissa: p.premissa || '' };
+    });
+    estado.duvidas = null;
+    iniciarAnalise(ctx, d.telas, d.envio, d.id);
+  }
+  function pularDuvidas(){
+    var d = estado.duvidas;
+    if (!d) return;
+    descartarDuvidas();
+    iniciarAnalise(d.ctx, d.telas, d.envio, d.id);
+  }
+
+  function pararRelogioDuvidas(){
+    if (estado.relogioDuvidas){ clearInterval(estado.relogioDuvidas); estado.relogioDuvidas = null; }
+  }
+
+  function mostrarDuvidas(focar){
+    destruirVisualizador();
+    estado.atualId = null;
+    marcarHash(null);
+    porId('tituloPagina').textContent = 'Dúvidas da IA';
+    renderSidebar();
+    renderDuvidas(focar);
+    fecharSidebarSeMobile();
+  }
+
+  function renderDuvidas(focar){
+    var d = estado.duvidas;
+    var v = porId('vistaDuvidas');
+    if (!d) return;
+    pararRelogioDuvidas();
+    v.innerHTML = '';
+    var miolo = mk('div', 'pl-miolo');
+    var n = d.fase === 'pronto' ? d.dados.perguntas.length : 0;
+
+    var topo = mk('header', 'pl-topo-vista');
+    var tit = mk('div', 'pl-topo-tit');
+    var h1 = mk('h1', null, n ? 'Antes de analisar, confirme ' + (n === 1 ? '1 ponto' : n + ' pontos')
+                              : 'Dúvidas da IA');
+    h1.id = 'dvTitulo';
+    h1.tabIndex = -1;
+    h1.setAttribute('data-foco', '');
+    tit.appendChild(h1);
+    tit.appendChild(mk('p', 'pl-topo-sub', d.fase === 'carregando'
+      ? 'A IA está lendo as telas para separar só o que não dá para ver nelas.'
+      : 'Respostas curtas deixam o KPI, o numerador e o denominador mais assertivos.'));
+    topo.appendChild(tit);
+    var lado = mk('div', 'pl-topo-lado');
+    lado.appendChild(passosEl('duvidas'));
+    topo.appendChild(lado);
+    miolo.appendChild(topo);
+
+    var grade = mk('div', 'pl-dv-grid');
+    grade.appendChild(resumoPedidoEl(d));
+    var main = mk('div', 'pl-dv-main');
+    if (d.fase === 'carregando') main.appendChild(carregandoDuvidasEl(d));
+    else if (d.fase === 'erro') main.appendChild(erroDuvidasEl(d));
+    else main.appendChild(perguntasEl(d));
+    grade.appendChild(main);
+    miolo.appendChild(grade);
+    if (d.fase === 'pronto') miolo.appendChild(barraDuvidasEl(d));
+    v.appendChild(miolo);
+    trocarVista('duvidas', focar);
+    if (d.fase === 'carregando'){
+      estado.relogioDuvidas = setInterval(function(){
+        var rel = porId('dvRelogio');
+        if (rel) rel.textContent = mmss(Math.floor((Date.now() - d.inicio) / 1000));
+      }, 1000);
+    }
+  }
+
+  // Coluna "Seu pedido": pergunta, canal e as telas (sempre à vista)
+  function resumoPedidoEl(d){
+    var box = mk('aside', 'pl-dv-resumo pl-cartao');
+    box.setAttribute('aria-label', 'Seu pedido');
+    box.appendChild(mk('div', 'pl-dv-rotulo', 'Seu pedido'));
+    box.appendChild(mk('p', 'pl-dv-pergunta', '“' + d.ctx.pergunta + '”'));
+    var chips = mk('div', 'pl-chips');
+    chips.appendChild(chip('Canal', d.ctx.canal || 'não informado'));
+    if (d.ctx.plataforma) chips.appendChild(chip('Plataforma', d.ctx.plataforma));
+    if (d.ctx.mapa_metricas) chips.appendChild(chip('Mapa de métricas', 'informado'));
+    box.appendChild(chips);
+    var telas = mk('ol', 'pl-dv-telas');
+    telas.setAttribute('aria-label', 'Telas enviadas');
+    d.telas.forEach(function(t, i){
+      var li = mk('li', 'pl-dv-tela');
+      var img = document.createElement('img');
+      img.src = t.dataUrl;
+      img.alt = '';
+      li.appendChild(img);
+      var cap = mk('span', 'pl-dv-tela-nome');
+      cap.appendChild(mk('b', null, String(i + 1)));
+      cap.appendChild(document.createTextNode(' ' + (t.nome || 'Tela')));
+      li.appendChild(cap);
+      li.title = (i + 1) + '. ' + (t.nome || 'Tela');
+      telas.appendChild(li);
+    });
+    box.appendChild(telas);
+    var voltar = mk('button', 'pl-btn pl-btn-sec pl-btn-peq pl-dv-voltar');
+    voltar.type = 'button';
+    voltar.innerHTML = SVG_VOLTAR + '<span>Voltar e editar</span>';
+    voltar.addEventListener('click', voltarParaEditar);
+    box.appendChild(voltar);
+    return box;
+  }
+
+  function carregandoDuvidasEl(d){
+    var card = mk('div', 'pl-cartao pl-dv-carregando');
+    card.setAttribute('role', 'status');
+    var icone = mk('div', 'pl-prog-icone');
+    icone.innerHTML = '<img src="/static/planner-icone.svg" alt=""><span class="pl-prog-anel"></span>';
+    card.appendChild(icone);
+    card.appendChild(mk('h2', 'pl-dv-carr-tit', 'Lendo as telas e preparando as perguntas'));
+    card.appendChild(mk('p', 'pl-dv-carr-txt', 'A IA confere o que dá para ver nas imagens e pergunta só o que muda o KPI: produto, ' +
+      'evento de conversão, denominador ou regra de negócio. Até ' + cfg.maxPerguntas + ' perguntas.'));
+    var rel = mk('div', 'pl-prog-relogio', mmss(Math.floor((Date.now() - d.inicio) / 1000)));
+    rel.id = 'dvRelogio';
+    rel.setAttribute('aria-hidden', 'true');
+    card.appendChild(rel);
+    card.appendChild(mk('div', 'pl-prog-barra'));
+    card.appendChild(mk('p', 'pl-prog-nota', 'Costuma levar cerca de 1 minuto. Se preferir, siga sem perguntas.'));
+    var pular = mk('button', 'pl-btn pl-btn-sec pl-btn-peq', 'Analisar sem perguntas');
+    pular.type = 'button';
+    pular.addEventListener('click', pularDuvidas);
+    var acoes = mk('div', 'pl-prog-acoes');
+    acoes.appendChild(pular);
+    card.appendChild(acoes);
+    return card;
+  }
+
+  function erroDuvidasEl(d){
+    var card = mk('div', 'pl-cartao pl-dv-erro');
+    var icone = mk('div', 'pl-erro-icone');
+    icone.innerHTML = SVG_ALERTA;
+    card.appendChild(icone);
+    card.appendChild(mk('h2', 'pl-dv-carr-tit', 'Não foi possível preparar as dúvidas'));
+    var p = mk('p', 'pl-dv-carr-txt', d.erro || 'Erro desconhecido.');
+    p.setAttribute('role', 'alert');
+    card.appendChild(p);
+    var acoes = mk('div', 'pl-erro-acoes');
+    var tentar = mk('button', 'pl-btn pl-btn-sec');
+    tentar.type = 'button';
+    tentar.innerHTML = SVG_REPETIR + '<span>Tentar de novo</span>';
+    tentar.addEventListener('click', function(){ pedirDuvidas(null, null, d); });
+    var seguir = mk('button', 'pl-btn pl-btn-pri');
+    seguir.type = 'button';
+    seguir.innerHTML = '<span>Analisar sem perguntas</span>' + SVG_SETA;
+    seguir.addEventListener('click', pularDuvidas);
+    acoes.appendChild(tentar);
+    acoes.appendChild(seguir);
+    card.appendChild(acoes);
+    return card;
+  }
+
+  function perguntasEl(d){
+    var box = mk('div', 'pl-dv-conteudo');
+    if (d.dados.entendimento){
+      var ent = mk('div', 'pl-dv-entendi');
+      var ic = mk('span', 'pl-dv-entendi-icone');
+      ic.innerHTML = SVG_IDEIA;
+      ent.appendChild(ic);
+      var txt = mk('div', 'pl-dv-entendi-txt');
+      txt.appendChild(mk('div', 'pl-dv-rotulo', 'O que a IA entendeu'));
+      txt.appendChild(mk('p', null, d.dados.entendimento));
+      ent.appendChild(txt);
+      box.appendChild(ent);
+    }
+    if (d.dados.aviso) box.appendChild(caixaAviso(d.dados.aviso));
+    if (!d.dados.perguntas.length) return box;
+    box.appendChild(mk('p', 'pl-dv-instrucao',
+      'Escolha uma opção ou escreva a sua resposta. O que ficar em branco segue com a premissa indicada.'));
+    var ol = mk('ol', 'pl-dv-lista');
+    d.dados.perguntas.forEach(function(p, i){ ol.appendChild(itemPerguntaEl(d, p, i)); });
+    box.appendChild(ol);
+    return box;
+  }
+
+  function itemPerguntaEl(d, p, i){
+    var r = d.respostas[p.id] || (d.respostas[p.id] = { opcao: '', texto: '' });
+    var li = mk('li', 'pl-dv-item pl-cartao');
+    var idTit = 'dvP_' + p.id;
+    var cab = mk('div', 'pl-dv-cab');
+    cab.appendChild(mk('span', 'pl-dv-num', String(i + 1)));
+    var h = mk('h3', 'pl-dv-q', p.pergunta);
+    h.id = idTit;
+    cab.appendChild(h);
+    var selo = mk('span', 'pl-dv-selo');
+    cab.appendChild(selo);
+    li.appendChild(cab);
+    if (p.por_que) li.appendChild(mk('p', 'pl-dv-porque', p.por_que));
+
+    var radios = [];
+    if (p.opcoes && p.opcoes.length){
+      var grupo = mk('div', 'pl-seg pl-dv-opcoes');
+      grupo.setAttribute('role', 'radiogroup');
+      grupo.setAttribute('aria-labelledby', idTit);
+      p.opcoes.forEach(function(o){
+        var lbl = mk('label');
+        var inp = document.createElement('input');
+        inp.type = 'radio';
+        inp.name = 'dv_' + d.id + '_' + p.id;
+        inp.value = o;
+        inp.checked = r.opcao === o;
+        // clicar de novo na opção escolhida desmarca (volta para a premissa)
+        inp.addEventListener('click', function(){
+          if (r.opcao === o){ inp.checked = false; r.opcao = ''; }
+          else { r.opcao = o; r.texto = ''; outra.value = ''; }
+          atualizar();
+        });
+        radios.push(inp);
+        lbl.appendChild(inp);
+        lbl.appendChild(mk('span', null, o));
+        grupo.appendChild(lbl);
+      });
+      li.appendChild(grupo);
+    }
+    var outra = document.createElement('input');
+    outra.type = 'text';
+    outra.className = 'pl-input pl-dv-outra';
+    outra.maxLength = 500;
+    outra.autocomplete = 'off';
+    outra.placeholder = radios.length ? 'Ou escreva outra resposta…' : 'Sua resposta…';
+    outra.setAttribute('aria-label', 'Resposta para: ' + p.pergunta);
+    outra.value = r.texto || '';
+    outra.addEventListener('input', function(){
+      r.texto = outra.value;
+      if (outra.value.trim() && r.opcao){
+        r.opcao = '';
+        radios.forEach(function(x){ x.checked = false; });
+      }
+      atualizar();
+    });
+    li.appendChild(outra);
+    if (p.premissa){
+      var pr = mk('p', 'pl-dv-premissa');
+      pr.innerHTML = SVG_PREMISSA;
+      var prTxt = mk('span', null, 'Se ficar em branco: ');
+      prTxt.appendChild(mk('b', null, p.premissa));
+      pr.appendChild(prTxt);
+      li.appendChild(pr);
+    }
+    function atualizar(){
+      var ok = !!respostaDe(d, p);
+      li.classList.toggle('respondida', ok);
+      selo.innerHTML = ok ? SVG_CHECK + '<span>Respondida</span>' : '<span>Premissa</span>';
+      atualizarBarraDuvidas(d);
+    }
+    atualizar();
+    return li;
+  }
+
+  function barraDuvidasEl(d){
+    var barra = mk('div', 'pl-barra pl-barra-duvidas');
+    var st = mk('p', 'pl-envio-status');
+    st.id = 'dvStatus';
+    st.setAttribute('aria-live', 'polite');
+    var esq = mk('div', 'pl-barra-priv pl-barra-progresso');
+    var trilho = mk('div', 'pl-dv-trilho');
+    trilho.setAttribute('aria-hidden', 'true');
+    var cheio = mk('i');
+    cheio.id = 'dvTrilho';
+    trilho.appendChild(cheio);
+    esq.appendChild(trilho);
+    esq.appendChild(st);
+    barra.appendChild(esq);
+    var acoes = mk('div', 'pl-barra-acoes');
+    var voltar = mk('button', 'pl-btn pl-btn-sec');
+    voltar.type = 'button';
+    voltar.innerHTML = SVG_VOLTAR + '<span>Voltar e editar</span>';
+    voltar.addEventListener('click', voltarParaEditar);
+    var ir = mk('button', 'pl-btn pl-btn-pri pl-btn-grande');
+    ir.type = 'button';
+    ir.id = 'btnDvAnalisar';
+    ir.innerHTML = '<span>Analisar</span>' + SVG_SETA;
+    ir.addEventListener('click', analisarComRespostas);
+    acoes.appendChild(voltar);
+    acoes.appendChild(ir);
+    barra.appendChild(acoes);
+    setTimeout(function(){ atualizarBarraDuvidas(d); }, 0);
+    return barra;
+  }
+  function atualizarBarraDuvidas(d){
+    var st = porId('dvStatus'), tr = porId('dvTrilho');
+    if (!st || !d.dados) return;
+    var total = d.dados.perguntas.length;
+    var feitas = d.dados.perguntas.filter(function(p){ return !!respostaDe(d, p); }).length;
+    if (tr) tr.style.width = (total ? Math.round(feitas / total * 100) : 100) + '%';
+    st.textContent = !total ? 'Pronto para analisar.'
+      : feitas + ' de ' + total + (total === 1 ? ' respondida' : ' respondidas') +
+        (feitas < total ? ' · as demais seguem com a premissa' : ' · tudo confirmado');
+  }
+
+  function corpoAnalise(reg, envio){
+    return { session_id: reg.id, modo: 'analise', contexto: reg.contexto,
+             telas: corpoTelas(reg.telas, envio) };
   }
 
   // Envia a análise (registro já gravado como 'pendente'). Sem `envio`
@@ -1266,6 +1725,9 @@
     var v = porId('vistaProgresso');
     v.innerHTML = '';
     var miolo = mk('div', 'pl-miolo');
+    var etapas = mk('div', 'pl-prog-passos');
+    etapas.appendChild(passosEl('analise'));
+    miolo.appendChild(etapas);
     var card = mk('div', 'pl-progresso pl-cartao');
     var icone = mk('div', 'pl-prog-icone');
     icone.innerHTML = '<img src="/static/planner-icone.svg" alt=""><span class="pl-prog-anel"></span>';
@@ -1436,6 +1898,31 @@
     return box;
   }
 
+  // "Dúvidas da IA antes da análise": o que foi confirmado e o que foi suposto
+  function blocoEsclarecimentos(reg){
+    var lista = (reg.contexto && reg.contexto.esclarecimentos) || [];
+    if (!lista.length) return null;
+    var respondidas = lista.filter(function(e){ return e && e.resposta; }).length;
+    var det = mk('details', 'pl-dv-res');
+    var sum = mk('summary');
+    sum.appendChild(mk('span', 'pl-dv-res-tit', 'Dúvidas da IA antes da análise'));
+    sum.appendChild(mk('span', 'pl-dv-res-cont', respondidas + ' de ' + lista.length +
+      (lista.length === 1 ? ' respondida' : ' respondidas')));
+    det.appendChild(sum);
+    var ol = mk('ol', 'pl-dv-res-lista');
+    lista.forEach(function(e){
+      var li = mk('li');
+      li.appendChild(mk('div', 'pl-dv-res-q', e.pergunta));
+      var a = mk('div', 'pl-dv-res-a' + (e.resposta ? '' : ' premissa'));
+      a.appendChild(mk('b', null, e.resposta ? 'Você: ' : 'Premissa: '));
+      a.appendChild(document.createTextNode(e.resposta || e.premissa || 'sem premissa informada'));
+      li.appendChild(a);
+      ol.appendChild(li);
+    });
+    det.appendChild(ol);
+    return det;
+  }
+
   function caixaAviso(texto){
     var a = mk('div', 'pl-aviso');
     a.setAttribute('role', 'note');
@@ -1464,6 +1951,8 @@
     h1.setAttribute('data-foco', '');
     cab.appendChild(h1);
     cab.appendChild(chipsContexto(reg));
+    var esclarecimentos = blocoEsclarecimentos(reg);
+    if (esclarecimentos) cab.appendChild(esclarecimentos);
     var rodape = mk('div', 'pl-res-rodape');
     var acoes = mk('div', 'pl-res-acoes');
     var bNova = mk('button', 'pl-btn pl-btn-sec pl-btn-peq');
@@ -2002,7 +2491,8 @@
       exemplos.appendChild(b);
     });
 
-    porId('btnAnalisar').addEventListener('click', analisar);
+    porId('btnAnalisar').addEventListener('click', continuar);
+    porId('btnSemPerguntas').addEventListener('click', analisar);
     porId('btnLimpar').addEventListener('click', function(){ limparFormulario(true); });
     porId('btnBannerDescartar').addEventListener('click', function(){ limparFormulario(true); });
   }
@@ -2043,6 +2533,13 @@
     rascunho = novoRascunho();
 
     porId('limiteTelas').textContent = String(cfg.maxTelas);
+    // Etapa de dúvidas (config.py): "Continuar" + "Analisar sem perguntas";
+    // desligada, o botão volta a ser "Analisar" direto.
+    preencherPassos(porId('passosForm'), 'form');
+    porId('maxPerguntasTxt').textContent = String(cfg.maxPerguntas);
+    porId('comoFunciona').hidden = !cfg.esclarecer;
+    porId('btnSemPerguntas').hidden = !cfg.esclarecer;
+    porId('btnAnalisarTxt').textContent = cfg.esclarecer ? 'Continuar' : 'Analisar';
     ligarShell();
     ligarFormulario();
     ligarFigma();

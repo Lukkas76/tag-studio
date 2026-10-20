@@ -72,14 +72,15 @@ __GTM_BODY__
         <!-- ============ Nova análise (formulário) ============ -->
         <section class="pl-vista" id="vistaForm" aria-labelledby="formTitulo">
           <div class="pl-miolo">
-            <header class="pl-intro">
-              <img class="pl-intro-icone" src="/static/planner-icone.svg" alt="">
-              <div class="pl-intro-txt">
+            <header class="pl-topo-vista">
+              <div class="pl-topo-tit">
                 <h1 id="formTitulo" tabindex="-1" data-foco>Nova análise</h1>
-                <p class="pl-intro-tagline">Do KPI ao plano mínimo de tagueamento</p>
-                <p class="pl-intro-texto">Envie as telas da jornada e a pergunta de negócio. O Planner indica o que taguear (e o que não), monta o plano mínimo de mensuração e marca os elementos na imagem.</p>
+                <p class="pl-topo-sub">Suba as telas da jornada e diga o que o time precisa responder. O Planner define o KPI, o plano mínimo de eventos e marca os elementos na tela.</p>
               </div>
-              <button type="button" class="pl-btn-link pl-intro-limpar" id="btnLimpar" hidden>Limpar formulário</button>
+              <div class="pl-topo-lado">
+                <ol class="pl-passos" id="passosForm" aria-label="Etapas da análise"></ol>
+                <button type="button" class="pl-btn-link" id="btnLimpar" hidden>Limpar formulário</button>
+              </div>
             </header>
 
             <div class="pl-recentes" id="recentes" hidden></div>
@@ -91,10 +92,10 @@ __GTM_BODY__
             </div>
 
             <div class="pl-form-grid">
-              <!-- 1. Telas -->
-              <section class="pl-cartao pl-sec" aria-labelledby="secTelasTitulo">
+              <!-- Telas -->
+              <section class="pl-cartao pl-sec pl-sec-telas" aria-labelledby="secTelasTitulo">
                 <div class="pl-sec-cab">
-                  <span class="pl-sec-num" aria-hidden="true">1</span>
+                  <span class="pl-sec-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"></rect><path d="M10 18h4"></path></svg></span>
                   <div class="pl-sec-tit">
                     <h2 id="secTelasTitulo">Telas da jornada</h2>
                     <p class="pl-sec-sub">Na ordem em que o cliente passa por elas.</p>
@@ -115,9 +116,11 @@ __GTM_BODY__
 
                 <div class="pl-painel" role="tabpanel" id="painelUpload" aria-labelledby="abaUpload">
                   <div class="pl-drop" id="dropzone" role="button" tabindex="0" aria-describedby="dropDica">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M4 15v3.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V15"></path></svg>
-                    <div class="pl-drop-titulo">Arraste as telas aqui ou <u>escolha os arquivos</u></div>
-                    <div class="pl-drop-dica" id="dropDica"><span>Também dá para colar um print com Ctrl+V.</span> <span>PNG, JPG, WEBP ou GIF · até <span id="limiteTelas">6</span> telas</span></div>
+                    <span class="pl-drop-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"></path><path d="m7.5 8.5 4.5-4.5 4.5 4.5"></path><path d="M4 15v3.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V15"></path></svg></span>
+                    <div class="pl-drop-txt">
+                      <div class="pl-drop-titulo">Arraste as telas aqui ou <u>escolha os arquivos</u></div>
+                      <div class="pl-drop-dica" id="dropDica"><span>Também dá para colar um print com Ctrl+V.</span> <span>PNG, JPG, WEBP ou GIF · até <span id="limiteTelas">6</span> telas</span></div>
+                    </div>
                     <div class="pl-drop-status" id="dropStatus" role="status" aria-live="polite" hidden></div>
                   </div>
                   <input type="file" id="inputArquivo" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
@@ -155,38 +158,22 @@ __GTM_BODY__
                 <p class="pl-nota" id="notaPartes" hidden></p>
               </section>
 
-              <!-- 2. Contexto -->
-              <section class="pl-cartao pl-sec" aria-labelledby="secContextoTitulo">
+              <!-- Objetivo -->
+              <section class="pl-cartao pl-sec pl-sec-objetivo" aria-labelledby="secObjetivoTitulo">
                 <div class="pl-sec-cab">
-                  <span class="pl-sec-num" aria-hidden="true">2</span>
+                  <span class="pl-sec-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="12" r="1.2"></circle></svg></span>
                   <div class="pl-sec-tit">
-                    <h2 id="secContextoTitulo">Contexto</h2>
-                    <p class="pl-sec-sub">Quanto mais contexto, mais precisa a recomendação.</p>
+                    <h2 id="secObjetivoTitulo">Objetivo da análise</h2>
+                    <p class="pl-sec-sub">A pergunta define o KPI, o numerador e o denominador.</p>
                   </div>
                 </div>
 
                 <div class="pl-campo">
                   <label for="campoPergunta">Pergunta de negócio <span class="pl-obrig" aria-hidden="true">*</span></label>
-                  <textarea class="pl-input" id="campoPergunta" rows="3" maxlength="1000" required aria-required="true" placeholder="O que o time precisa responder com os dados?"></textarea>
+                  <textarea class="pl-input pl-input-destaque" id="campoPergunta" rows="4" maxlength="1000" required aria-required="true" placeholder="O que o time precisa responder com os dados?"></textarea>
                   <div class="pl-exemplos" id="exemplosPergunta" role="group" aria-label="Exemplos de pergunta (clique para usar)">
                     <span class="pl-exemplos-rotulo" aria-hidden="true">Exemplos:</span>
                   </div>
-                </div>
-
-                <div class="pl-campos-2">
-                  <div class="pl-campo">
-                    <label for="campoProduto">Produto <span class="pl-opc">(opcional)</span></label>
-                    <input type="text" class="pl-input" id="campoProduto" maxlength="120" placeholder="Ex.: Cartão de crédito" autocomplete="off">
-                  </div>
-                  <div class="pl-campo">
-                    <label for="campoJornada">Jornada <span class="pl-opc">(opcional)</span></label>
-                    <input type="text" class="pl-input" id="campoJornada" maxlength="120" placeholder="Ex.: Contratação" autocomplete="off">
-                  </div>
-                </div>
-
-                <div class="pl-campo">
-                  <label for="campoTela">Nome da tela <span class="pl-opc">(opcional)</span></label>
-                  <input type="text" class="pl-input" id="campoTela" maxlength="120" placeholder="Ex.: Oferta do cartão" autocomplete="off">
                 </div>
 
                 <fieldset class="pl-fieldset">
@@ -195,9 +182,9 @@ __GTM_BODY__
                     <label><input type="radio" name="canal" value="Web"><span>Web</span></label>
                     <label><input type="radio" name="canal" value="WebView"><span>WebView</span></label>
                     <label><input type="radio" name="canal" value="App nativo"><span>App nativo</span></label>
-                    <label><input type="radio" name="canal" value="" checked><span>Não informado</span></label>
+                    <label><input type="radio" name="canal" value="" checked><span>Não sei</span></label>
                   </div>
-                  <p class="pl-ajuda">Na dúvida, deixe “Não informado”: o Planner não deduz o canal (Android pode ser WebView).</p>
+                  <p class="pl-ajuda">A taxonomia muda com o canal e o Planner não o deduz (Android pode ser WebView).</p>
                 </fieldset>
 
                 <fieldset class="pl-fieldset">
@@ -206,49 +193,48 @@ __GTM_BODY__
                     <label><input type="radio" name="plataforma" value="Android"><span>Android</span></label>
                     <label><input type="radio" name="plataforma" value="iOS"><span>iOS</span></label>
                     <label><input type="radio" name="plataforma" value="Navegador"><span>Navegador</span></label>
-                    <label><input type="radio" name="plataforma" value="" checked><span>Não informado</span></label>
+                    <label><input type="radio" name="plataforma" value="" checked><span>Não sei</span></label>
                   </div>
                 </fieldset>
 
-                <div class="pl-campos-2">
-                  <div class="pl-campo">
-                    <label for="campoTelaAnterior">Tela anterior <span class="pl-opc">(opcional)</span></label>
-                    <input type="text" class="pl-input" id="campoTelaAnterior" maxlength="120" placeholder="Ex.: Home do app" autocomplete="off">
+                <details class="pl-mais" id="detalhesMapa">
+                  <summary>
+                    <span class="pl-mais-tit">Mapa de métricas existente <span class="pl-opc">(opcional)</span></span>
+                    <span class="pl-mais-sub">Cole os eventos e parâmetros que já existem para a IA reaproveitar.</span>
+                  </summary>
+                  <div class="pl-mais-corpo">
+                    <label class="pl-sr" for="campoMapa">Mapa de métricas existente</label>
+                    <textarea class="pl-input pl-mono" id="campoMapa" rows="5" maxlength="20000" placeholder="evento, parâmetros, onde dispara…" spellcheck="false"></textarea>
                   </div>
-                  <div class="pl-campo">
-                    <label for="campoTelaSeguinte">Próxima tela <span class="pl-opc">(opcional)</span></label>
-                    <input type="text" class="pl-input" id="campoTelaSeguinte" maxlength="120" placeholder="Ex.: Dados pessoais" autocomplete="off">
-                  </div>
-                </div>
+                </details>
 
-                <div class="pl-campo">
-                  <label for="campoMapa">Mapa de métricas existente <span class="pl-opc">(opcional)</span></label>
-                  <textarea class="pl-input pl-mono" id="campoMapa" rows="3" maxlength="20000" placeholder="Cole eventos e parâmetros que já existem, se houver" spellcheck="false"></textarea>
-                </div>
-
-                <div class="pl-campo pl-campo-ultimo">
-                  <label for="campoObs">Observações <span class="pl-opc">(opcional)</span></label>
-                  <textarea class="pl-input" id="campoObs" rows="2" maxlength="2000" placeholder="Regras de negócio, restrições, o que já se sabe…"></textarea>
+                <div class="pl-como" id="comoFunciona">
+                  <span class="pl-como-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9.5 9a2.5 2.5 0 0 1 4.8 1c0 1.7-2.3 2-2.3 3.2"></path><path d="M12 15.5h.01"></path></svg></span>
+                  <p><strong>Sem formulário longo:</strong> ao continuar, a IA lê as telas e faz até <span id="maxPerguntasTxt">3</span> perguntas rápidas sobre o que não der para ver (produto, conversão, regra de negócio). Dá para pular.</p>
                 </div>
               </section>
             </div>
 
-            <div class="pl-envio">
-              <div class="pl-privacidade" role="note">
+            <div class="pl-barra" id="barraEnvio">
+              <div class="pl-barra-priv" role="note">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
-                <p><strong>Privacidade:</strong> não envie telas com dados reais de clientes (CPF, agência/conta, cartão, telefone, e-mail, nome). Prefira telas do Figma ou prints mascarados.</p>
+                <span><strong>Privacidade:</strong> nada de dados reais de clientes. Use o Figma ou prints mascarados.</span>
               </div>
-              <div class="pl-msg" id="envioMsg" role="alert"></div>
-              <div class="pl-envio-linha">
+              <div class="pl-barra-acoes">
                 <p class="pl-envio-status" id="envioStatus" aria-live="polite"></p>
+                <button type="button" class="pl-btn pl-btn-sec" id="btnSemPerguntas" hidden>Analisar sem perguntas</button>
                 <button type="button" class="pl-btn pl-btn-pri pl-btn-grande" id="btnAnalisar" disabled>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3.5"></circle><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"></path></svg>
-                  Analisar
+                  <span id="btnAnalisarTxt">Continuar</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
                 </button>
               </div>
             </div>
+            <div class="pl-msg" id="envioMsg" role="alert"></div>
           </div>
         </section>
+
+        <!-- ============ Dúvidas da IA (antes da análise) ============ -->
+        <section class="pl-vista" id="vistaDuvidas" aria-labelledby="dvTitulo" hidden></section>
 
         <!-- ============ Analisando ============ -->
         <section class="pl-vista" id="vistaProgresso" aria-labelledby="progTitulo" hidden></section>
