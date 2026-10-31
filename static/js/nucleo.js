@@ -10,6 +10,17 @@
     cfg: window.TAG_CONFIG || {}
   };
 
+  // ---- Nome da plataforma (NOME_PLATAFORMA no config.py) --------------------
+  // As páginas são HTML estático com o nome padrão; se o config.py trouxer
+  // outro, ele entra como texto nos elementos marcados e no título da aba.
+  var NOME_PADRAO = 'Tag Studio';
+  var nome = (TA.cfg.plataforma && TA.cfg.plataforma.nome) || NOME_PADRAO;
+  if (nome !== NOME_PADRAO){
+    var marcados = document.querySelectorAll('[data-nome-plataforma]');
+    for (var i = 0; i < marcados.length; i++) marcados[i].textContent = nome;
+    document.title = document.title.split(NOME_PADRAO).join(nome);
+  }
+
   // ---- Sessão salva no navegador (token + dados da conta Google) ----------
   TA.token = function(){
     return localStorage.getItem('tag_auditor_token');

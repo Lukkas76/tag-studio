@@ -2,9 +2,9 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-__GTM_HEAD__
+<script src="/config.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel administrativo | __NOME_PLATAFORMA__</title>
+<title>Painel administrativo | Tag Studio</title>
 <link rel="icon" href="/static/plataforma-icone.svg">
 <style>
 :root{
@@ -421,11 +421,10 @@ td.quando .hora{color:var(--ink3); font-size:12px; display:block;}
 </style>
 </head>
 <body>
-__GTM_BODY__
   <aside class="side">
     <a class="brand" href="/" title="Início da plataforma">
       <img src="/static/plataforma-icone.svg" alt="">
-      <span class="nome">__NOME_PLATAFORMA__<small>Painel admin</small></span>
+      <span class="nome"><span data-nome-plataforma>Tag Studio</span><small>Painel admin</small></span>
     </a>
     <div class="rotulo-grp">Visões</div>
     <nav class="nav" id="nav" aria-label="Visões do painel">
@@ -523,7 +522,6 @@ __GTM_BODY__
   <div class="tip" id="tip" aria-hidden="true" hidden></div>
   <div class="sr" id="leitor" aria-live="polite"></div>
 
-  <script>window.TAG_CONFIG = __CONFIG_JSON__;</script>
   <script src="/static/js/admin.js"></script>
 </body>
 </html>

@@ -17,9 +17,12 @@
   'use strict';
 
   var CFG = window.TAG_CONFIG || {};
-  // Nome da plataforma (NOME_PLATAFORMA no config.py). O HTML já chega com o
-  // nome trocado pelo servidor; a API também o devolve.
+  // Nome da plataforma (NOME_PLATAFORMA no config.py). O HTML é estático com o
+  // nome padrão: o da config entra como texto nos elementos marcados (a API
+  // também o devolve, para o título da aba).
   var nomePlataforma = (CFG.plataforma && CFG.plataforma.nome) || 'Tag Studio';
+  Array.prototype.forEach.call(document.querySelectorAll('[data-nome-plataforma]'),
+    function(el){ el.textContent = nomePlataforma; });
   // ?volta= faz o login devolver a pessoa para o painel depois de entrar
   var URL_LOGIN = '/?volta=/admin';
   var LIMITE_EVENTOS = 5000;     // teto aceito por /api/admin/atividade
@@ -1117,13 +1120,25 @@
   }
 
   // ---- Filtros ---------------------------------------------------------------------
+  // Allow-list dos filtros: e-mail, mês (AAAA-MM) e ação do log só levam estes
+  // caracteres. Cada um é copiado da própria lista; o resto é descartado.
+  var CARACTERES_FILTRO = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' +
+    '@._+-\'/ ():—·áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ';
+  function textoDeFiltro(s){
+    var saida = '';
+    String(s == null ? '' : s).split('').forEach(function(c){
+      var i = parseInt(CARACTERES_FILTRO.indexOf(c), 10);
+      if (i >= 0) saida += CARACTERES_FILTRO.charAt(i);
+    });
+    return saida;
+  }
   function preencherSelect(sel, valores, rotulo){
     var atual = sel.value;
-    // texto e valor passam por esc(), como no resto do painel: nunca viram HTML
-    sel.innerHTML = '<option value="">' + esc(rotulo) + '</option>' +
-      valores.map(function(v){
-        return '<option value="' + esc(v.valor) + '">' + esc(v.texto) + '</option>';
-      }).join('');
+    sel.innerHTML = '';
+    sel.add(new Option(rotulo, ''));
+    valores.forEach(function(v){
+      sel.add(new Option(textoDeFiltro(v.texto), textoDeFiltro(v.valor)));
+    });
     sel.value = atual;
     if (sel.selectedIndex < 0) sel.selectedIndex = 0;
   }

@@ -2,14 +2,13 @@
 <html lang="pt-BR" class="validando">
 <head>
 <meta charset="utf-8">
-__GTM_HEAD__
+<script src="/config.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Auditor | __NOME_PLATAFORMA__</title>
+<title>Auditor | Tag Studio</title>
 <link rel="icon" href="/static/logo-tag-auditor.png">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-__GTM_BODY__
   <!-- Chat do Tag Auditor. Fica oculto até o auditor.js confirmar a sessão
        (sem sessão, volta para o login com ?volta=/auditor).
        IDs e classes abaixo são usados pelo chat.js e pelo tagueamento.js
@@ -19,7 +18,7 @@ __GTM_BODY__
       <div class="sidebar-top">
         <div class="brand">
           <img src="/static/logo-tag-auditor.png" alt="">
-          <span>Auditor<span class="marca-sub">__NOME_PLATAFORMA__</span></span>
+          <span>Auditor<span class="marca-sub" data-nome-plataforma>Tag Studio</span></span>
         </div>
         <button class="btn-novo" id="btnNovo">&#43;&nbsp; Novo chat</button>
       </div>
@@ -103,7 +102,6 @@ __GTM_BODY__
     </main>
   </div>
 
-  <script>window.TAG_CONFIG = __CONFIG_JSON__;</script>
   <!-- Ordem importa: nucleo (namespace TA) -> módulos -> api -> sessao ->
        tagueamento (pendura os listeners do mapa GA4) -> chat -> auditor
        (confirma a sessão, mostra o app, dispara o page_view e chama

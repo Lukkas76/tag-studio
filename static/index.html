@@ -2,9 +2,9 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-__GTM_HEAD__
+<script src="/config.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>__NOME_PLATAFORMA__ | Login</title>
+<title>Tag Studio | Login</title>
 <link rel="icon" href="/static/logo-tag-auditor.png">
 <link rel="stylesheet" href="/static/style.css">
 <link rel="stylesheet" href="/static/hub.css">
@@ -16,12 +16,11 @@ __GTM_HEAD__
 </script>
 </head>
 <body>
-__GTM_BODY__
   <!-- Tela de Login (única para todas as ferramentas da plataforma) -->
   <div id="telaLogin" class="tela-login">
     <div class="login-box">
       <img class="login-logo" src="/static/logo-tag-auditor.png" alt="">
-      <h1>__NOME_PLATAFORMA__</h1>
+      <h1 data-nome-plataforma>Tag Studio</h1>
       <div class="login-chip">Bradesco IA Gen</div>
       <div class="login-passos">
         <div class="passo"><span class="passo-num">1</span> Gere seu código de acesso:</div>
@@ -59,7 +58,7 @@ __GTM_BODY__
       <div class="hub-topo-interno">
         <div class="hub-marca">
           <img src="/static/plataforma-icone.svg" alt="">
-          <span class="hub-marca-nome">__NOME_PLATAFORMA__<span class="hub-marca-sub">Bradesco IA Gen</span></span>
+          <span class="hub-marca-nome"><span data-nome-plataforma>Tag Studio</span><span class="hub-marca-sub">Bradesco IA Gen</span></span>
         </div>
         <div class="usuario-area" id="usuarioArea">
           <button class="btn-usuario" id="btnUsuario" aria-label="Conta Google" title="Conta Google">
@@ -143,7 +142,6 @@ __GTM_BODY__
     </footer>
   </div>
 
-  <script>window.TAG_CONFIG = __CONFIG_JSON__;</script>
   <!-- Ordem importa: nucleo (namespace TA) -> api -> sessao -> hub -> login
        (o login.js é quem decide no load: Home, volta para a ferramenta que
        pediu o login ou tela de login). Sem tagueamento.js aqui: a Home não

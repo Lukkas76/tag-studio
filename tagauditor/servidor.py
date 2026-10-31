@@ -118,10 +118,7 @@ def _celula_csv(valor):
 
 
 def _config_frontend_json():
-    """Config injetada nas páginas (window.TAG_CONFIG) para o front.
-    "<", ">" e "&" saem como \\u003c, \\u003e e \\u0026 (o mesmo texto em
-    JSON/JS): nenhum valor do config.py ("</script>", "<!--") consegue fechar
-    ou desmontar o <script> onde a config é injetada."""
+    """Config do front (window.TAG_CONFIG), servida em /config.js."""
     return json.dumps({
         "limiteParte": 800000 if MODO_ASSINCRONO else TAMANHO_MAX_PARTE,
         "filtrarOk": bool(FILTRAR_SEM_AJUSTES),
@@ -144,11 +141,11 @@ def _config_frontend_json():
         # imagem do Tag Planner (lidos por static/js/planner*.js)
         "plataforma": {"nome": NOME_PLATAFORMA},
         "planner": planner.config_frontend(),
-    }, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+    }, ensure_ascii=False)
 
 
-# Páginas da plataforma: caminho -> arquivo de ./static. Todas passam pela
-# troca de placeholders (_trocar_placeholders).
+# Páginas da plataforma: caminho -> arquivo de ./static. São HTML estático: a
+# config do front e o GTM chegam por /config.js (_script_config).
 _PAGINAS = {
     "/": "index.html", "/index.html": "index.html",
     "/auditor": "auditor.html", "/auditor/": "auditor.html",
@@ -156,63 +153,34 @@ _PAGINAS = {
     "/admin": "admin.html", "/admin/": "admin.html",
 }
 
-_RE_PLACEHOLDER = re.compile(r"__(CONFIG_JSON|GTM_HEAD|GTM_BODY|NOME_PLATAFORMA)__")
-
-
 # ---- Google Tag Manager (mapa "[Bot] Tag Auditor | Home v1") ------------------
-# Trechos COPIADOS do documento de tagueamento, palavra por palavra: o head vai
-# o mais alto possível na <head> e o noscript logo depois da <body>. O ID sai do
-# GTM_ID (config.py); com GTM_ID vazio nada é injetado e o tagueamento fica off.
-_GTM_HEAD_MODELO = """<!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+# Loader COPIADO do documento de tagueamento, palavra por palavra (sem as tags
+# <script>): roda no /config.js, carregado no alto da <head> de cada página. O
+# ID sai do GTM_ID (config.py); com GTM_ID vazio nada roda e o tagueamento fica
+# off. O <noscript> do GTM saiu: a plataforma não funciona sem JavaScript.
+_GTM_LOADER = """(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','__GTM_ID__');</script>
-<!-- End Google Tag Manager -->"""
-
-_GTM_BODY_MODELO = """<!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=__GTM_ID__"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->"""
+})(window,document,'script','dataLayer',__GTM_ID__);"""
 
 
-def _gtm_trechos():
-    """(head, body) do GTM com o ID do config. ("", "") se GTM_ID estiver vazio."""
-    if not GTM_ID:
-        return "", ""
-    return (_GTM_HEAD_MODELO.replace("__GTM_ID__", GTM_ID),
-            _GTM_BODY_MODELO.replace("__GTM_ID__", GTM_ID))
+def _script_config():
+    """Conteúdo de /config.js: window.TAG_CONFIG (lido pelo nucleo.js e pelo
+    admin.js) e o loader do GTM. Só valores do config.py, nenhum dado de
+    usuário — e as páginas ficam estáticas, sem script inline."""
+    partes = ["window.TAG_CONFIG = " + _config_frontend_json() + ";"]
+    if GTM_ID:
+        partes.append(_GTM_LOADER.replace("__GTM_ID__", json.dumps(GTM_ID)))
+    return "\n".join(partes) + "\n"
 
 
-def _trocar_placeholders(texto):
-    """Troca __CONFIG_JSON__, __GTM_HEAD__, __GTM_BODY__ e __NOME_PLATAFORMA__
-    (este escapado para HTML) numa passada só: o que foi injetado (o JSON da
-    config, o GTM) nunca é varrido de novo atrás de outro placeholder."""
-    gtm_head, gtm_body = _gtm_trechos()
-    valores = {
-        "CONFIG_JSON": _config_frontend_json(),
-        "GTM_HEAD": gtm_head,
-        "GTM_BODY": gtm_body,
-        "NOME_PLATAFORMA": html.escape(NOME_PLATAFORMA),
-    }
-    return _RE_PLACEHOLDER.sub(lambda achado: valores[achado.group(1)], texto)
-
-
-def _ler_estatico(nome):
-    """Lê um arquivo de ./static. Aceita subpastas (ex.: js/chat.js).
-    Sem path traversal: o nome pedido só é COMPARADO com _ARQUIVOS_ESTATICOS
-    e nunca vira caminho de disco. Devolve (bytes, mime) ou (None, None)."""
+def _nome_estatico(nome):
+    """Nome da lista _ARQUIVOS_ESTATICOS igual ao pedido (aceita subpastas,
+    ex.: js/chat.js), ou None. Sem path traversal: o pedido só é COMPARADO
+    com a lista e nunca vira caminho de disco."""
     pedido = (nome or "").replace("\\", "/")
-    caminho = next((c for n, c in _ARQUIVOS_ESTATICOS if n == pedido), None)
-    if caminho is None:
-        return None, None
-    mime = _MIME_ESTATICO[os.path.splitext(caminho)[1].lower()]
-    try:
-        with open(caminho, "rb") as f:
-            return f.read(), mime
-    except OSError:
-        return None, None
+    return next((n for n, _caminho in _ARQUIVOS_ESTATICOS if n == pedido), None)
 
 
 SESSION_ID = None
@@ -271,21 +239,34 @@ def _resumo_do_mes(email):
     return {"mes": mes, "usuario": usuario, "plataforma": plataforma}
 
 
-class ManipuladorChat(http.server.BaseHTTPRequestHandler):
+class ManipuladorChat(http.server.SimpleHTTPRequestHandler):
+    # Páginas e arquivos de ./static saem pelo servidor de arquivos da
+    # biblioteca padrão (SimpleHTTPRequestHandler) — só os da lista
+    # _ARQUIVOS_ESTATICOS (_servir_arquivo); o resto são as rotas da API.
+    extensions_map = _MIME_ESTATICO
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=_STATIC_DIR, **kwargs)
+
     def log_message(self, formato, *args):
         pass
 
+    def end_headers(self):
+        """Cabeçalhos de segurança em TODA resposta (API e arquivos): sem cache,
+        HSTS (vale quando servido por HTTPS) e nosniff (o navegador não
+        "adivinha" o tipo do conteúdo)."""
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        super().end_headers()
+
     def _enviar(self, status, dados, tipo, extras=()):
-        """Única saída de resposta. Content-Type só de _TIPOS_RESPOSTA; o
-        tamanho vai como número (int); HSTS (vale quando servido por HTTPS) e
-        nosniff (o navegador não "adivinha" o tipo do conteúdo) em TODA resposta."""
+        """Saída das respostas geradas aqui (API, /config.js, downloads).
+        Content-Type só de _TIPOS_RESPOSTA; o tamanho vai como número (int)."""
         tipo_ok = next((t for t in _TIPOS_RESPOSTA if t == tipo), "application/octet-stream")
         self.send_response(status)
         self.send_header("Content-Type", tipo_ok)
         self.send_header("Content-Length", str(int(len(dados))))
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-        self.send_header("X-Content-Type-Options", "nosniff")
         for nome, valor in extras:
             self.send_header(nome, valor)
         self.end_headers()
@@ -302,26 +283,20 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
         self._enviar(status, html.escape(corpo).encode("utf-8", "replace"),
                      "text/plain; charset=utf-8")
 
-    def _responder_bytes(self, status, dados, tipo):
-        self._enviar(status, dados, tipo)
-
-    def _servir_pagina(self, nome):
-        """Serve uma página HTML de ./static (index, auditor, planner, admin)
-        com os placeholders trocados (config do front, GTM, nome da plataforma)."""
-        dados, _mime = _ler_estatico(nome)
-        if dados is None:
-            self._responder(500, "static/{} não encontrado. Verifique se a "
-                            "pasta static está na raiz do projeto.".format(nome))
-            return
-        pagina = _trocar_placeholders(dados.decode("utf-8"))
-        self._responder_bytes(200, pagina.encode("utf-8"), "text/html; charset=utf-8")
-
-    def _servir_estatico(self, nome):
-        dados, mime = _ler_estatico(nome)
-        if dados is None:
+    def _servir_arquivo(self, nome):
+        """Página ou arquivo de ./static da lista _ARQUIVOS_ESTATICOS,
+        entregue pelo SimpleHTTPRequestHandler. Fora da lista: 404."""
+        relativo = _nome_estatico(nome)
+        if relativo is None:
             self._responder(404, "Não encontrado")
             return
-        self._responder_bytes(200, dados, mime)
+        self.path = "/" + relativo
+        super().do_GET()
+
+    def do_HEAD(self):
+        # O SimpleHTTPRequestHandler responderia HEAD de qualquer arquivo de
+        # ./static, sem passar pela lista: HEAD segue sem suporte, como antes.
+        self.send_error(501, "Unsupported method ('HEAD')")
 
     def _token_sessao(self):
         auth = self.headers.get("Authorization", "")
@@ -346,9 +321,11 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         caminho = self.path.split("?", 1)[0]
         if caminho in _PAGINAS:
-            self._servir_pagina(_PAGINAS[caminho])
+            self._servir_arquivo(_PAGINAS[caminho])
         elif caminho.startswith("/static/"):
-            self._servir_estatico(caminho[len("/static/"):])
+            self._servir_arquivo(caminho[len("/static/"):])
+        elif caminho == "/config.js":
+            self._enviar(200, _script_config().encode("utf-8"), "text/javascript; charset=utf-8")
         elif caminho == "/api/me":
             usuario = self._usuario_atual()
             if usuario:

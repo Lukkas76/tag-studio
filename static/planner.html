@@ -2,22 +2,21 @@
 <html lang="pt-BR" class="validando">
 <head>
 <meta charset="utf-8">
-__GTM_HEAD__
+<script src="/config.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Planner | __NOME_PLATAFORMA__</title>
+<title>Planner | Tag Studio</title>
 <link rel="icon" type="image/svg+xml" href="/static/planner-icone.svg">
 <link rel="stylesheet" href="/static/style.css">
 <link rel="stylesheet" href="/static/planner.css">
 </head>
 <body>
-__GTM_BODY__
   <!-- Fica oculto até o planner.js confirmar a sessão (sem sessão volta ao login) -->
   <div class="app pl-app" id="app" style="display: none;">
     <aside class="sidebar" id="sidebar" aria-label="Histórico de análises">
       <div class="sidebar-top">
         <div class="brand">
           <img src="/static/planner-icone.svg" alt="">
-          <span>Planner<span class="marca-sub">__NOME_PLATAFORMA__</span></span>
+          <span>Planner<span class="marca-sub" data-nome-plataforma>Tag Studio</span></span>
         </div>
         <button type="button" class="btn-novo" id="btnNovaAnalise">&#43;&nbsp; Nova análise</button>
       </div>
@@ -250,7 +249,6 @@ __GTM_BODY__
 
   <div class="pl-toasts" id="plToasts" aria-live="polite"></div>
 
-  <script>window.TAG_CONFIG = __CONFIG_JSON__;</script>
   <!-- Ordem importa: nucleo (namespace TA) -> markdown -> api -> sessao ->
        módulos do planner -> planner (valida a sessão e liga a tela).
        Sem tagueamento.js: o Tag Planner não tem mapa de GA4 homologado. -->
