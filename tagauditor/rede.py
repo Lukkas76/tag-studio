@@ -14,6 +14,13 @@ import urllib.request
 from . import console
 from .config import ARQUIVO_CA, TIMEOUT_SEGUNDOS
 
+def url_do_proxy(proxy):
+    """Proxy no formato do urllib: "host:porta" ganha o esquema http://, o do
+    proxy corporativo (túnel CONNECT) — o tráfego até o destino segue em TLS
+    por dentro do túnel."""
+    return proxy if "://" in proxy else "http://" + proxy  # NOSONAR: proxy HTTP CONNECT; o destino é HTTPS
+
+
 CTX_SSL = ssl.create_default_context()
 if ARQUIVO_CA:
     try:

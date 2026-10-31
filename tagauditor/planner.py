@@ -207,7 +207,7 @@ _RE_ESPACOS = re.compile(r"\s+")
 # corta um nome no meio do emoji. Não vira UTF-8 - derrubaria o envio à IA.
 # (faixa montada com chr(): o Sonar não consegue ler surrogates num literal)
 _RE_SURROGATE = re.compile("[{}-{}]".format(chr(0xD800), chr(0xDFFF)))
-_SUBSTITUTO = "�"     # o caractere de substituição (losango com "?")
+_SUBSTITUTO = "\ufffd"     # o caractere de substituição (losango com "?")
 
 
 def sem_surrogates(texto):

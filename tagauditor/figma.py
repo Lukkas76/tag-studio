@@ -50,7 +50,7 @@ from .config import (
     FIGMA_LARGURA_ALVO, FIGMA_MAX_FRAMES, FIGMA_MAX_OPCOES, FIGMA_MAX_ELEMENTOS,
     FIGMA_CACHE_MIN,
 )
-from .rede import CTX_SSL
+from .rede import CTX_SSL, url_do_proxy
 from . import login_google
 
 # TLS do Figma COM verificação de certificado (rede.CTX_SSL): o token do Figma
@@ -328,7 +328,7 @@ def _proxy_configurado():
     p = str(PROXY_FIGMA or "").strip()
     if not p:
         return None
-    return p if "://" in p else "http://" + p
+    return url_do_proxy(p)
 
 
 def _mascarar(proxy):
@@ -419,7 +419,7 @@ def _msg_sem_rota():
     return ("Não consegui alcançar a API do Figma ({}) a partir do servidor: testei a "
             "conexão direta e os proxies do sistema. Se a rede exigir proxy, peça ao "
             "administrador para preencher PROXY_FIGMA no tagauditor/config.py (ex.: "
-            "http://proxy.bradesco.com.br:8080). {}".format(_host_api(), _DICA_UPLOAD))
+            "proxy.bradesco.com.br:8080). {}".format(_host_api(), _DICA_UPLOAD))
 
 
 def _rota():
@@ -668,7 +668,7 @@ def _erro_rede(exc, token=None):
     else:
         dica = ("Veja a linha [figma] na janela do servidor; se a rede exigir proxy, "
                 "preencha PROXY_FIGMA no tagauditor/config.py (ex.: "
-                "http://proxy.bradesco.com.br:8080).")
+                "proxy.bradesco.com.br:8080).")
     return ErroFigma("Não consegui conectar à API do Figma ({}). {}".format(detalhe, dica), 502)
 
 

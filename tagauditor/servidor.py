@@ -776,34 +776,42 @@ class ServidorChat(socketserver.ThreadingTCPServer):
     daemon_threads = True
 
 
+def _url_local(host, porta):
+    """Endereço que a janela do servidor mostra para abrir a plataforma. O
+    servidor local fala HTTP; no AKS o HTTPS fica no ingress, à frente dele."""
+    return "http://{}:{}".format(host, porta)  # NOSONAR: só exibido no banner; HTTPS no ingress
+
+
 def _enderecos_de_acesso(porta):
     url_nome = url_fqdn = url_ip = None
     try:
         nome = (socket.gethostname() or "").strip()
         if nome and "." not in nome:
-            url_nome = "http://{}:{}".format(nome.lower(), porta)
+            url_nome = _url_local(nome.lower(), porta)
         try:
             fqdn = (socket.getfqdn() or "").strip().rstrip(".")
             if fqdn and "." in fqdn and fqdn.lower() != nome.lower():
-                url_fqdn = "http://{}:{}".format(fqdn.lower(), porta)
+                url_fqdn = _url_local(fqdn.lower(), porta)
         except Exception:
             pass
         if url_nome is None and url_fqdn is None and nome:
-            url_nome = "http://{}:{}".format(nome.lower(), porta)
+            url_nome = _url_local(nome.lower(), porta)
     except Exception:
         pass
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            s.connect(("10.255.255.255", 1))
-            url_ip = "http://{}:{}".format(s.getsockname()[0], porta)
+            # Endereço não roteável: o connect UDP não envia nada, só escolhe a
+            # interface de rede para descobrir o IP desta máquina.
+            s.connect(("10.255.255.255", 1))  # NOSONAR: nenhum pacote é enviado
+            url_ip = _url_local(s.getsockname()[0], porta)
         finally:
             s.close()
     except Exception:
         try:
             ip = socket.gethostbyname(socket.gethostname())
             if ip and not ip.startswith("127."):
-                url_ip = "http://{}:{}".format(ip, porta)
+                url_ip = _url_local(ip, porta)
         except Exception:
             pass
     return url_nome, url_fqdn, url_ip

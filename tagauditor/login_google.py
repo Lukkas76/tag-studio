@@ -28,7 +28,7 @@ from .config import (
     URL_GOOGLE_TOKEN, PROXY_GOOGLE, EMAILS_AUTORIZADOS, DOMINIOS_AUTORIZADOS,
     NOME_PLATAFORMA,
 )
-from .rede import CTX_SSL
+from .rede import CTX_SSL, url_do_proxy
 
 
 def _decodificar_jwt_payload(token_jwt):
@@ -143,8 +143,8 @@ def _candidatos_proxy():
     vistos, unicos = set(), []
     for c in cands:
         c = (c or "").strip()
-        if c and "://" not in c:
-            c = "http://" + c
+        if c:
+            c = url_do_proxy(c)
         if c and c not in vistos:
             vistos.add(c)
             unicos.append(c)
@@ -175,7 +175,7 @@ def rota_google():
     """Devolve o proxy a usar com o Google (None = conexão direta).
     Descobre e testa 1x; se nada funcionar, tenta de novo a cada 60s."""
     if PROXY_GOOGLE:
-        return PROXY_GOOGLE if "://" in PROXY_GOOGLE else "http://" + PROXY_GOOGLE
+        return url_do_proxy(PROXY_GOOGLE)
     agora = time.time()
     with _trava_proxy:
         if _proxy_google["ok"] or agora - _proxy_google["testado_em"] < 60:
