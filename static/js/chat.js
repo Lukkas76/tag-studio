@@ -156,7 +156,9 @@
       }
       function tituloAuto(c){
         if (c.tituloManual) return;
-        for (var i = 0; i < c.mensagens.length; i++){
+        // o título sai da 1ª mensagem da pessoa: não precisa olhar além das primeiras
+        var n = Math.min(c.mensagens.length, 20);
+        for (var i = 0; i < n; i++){
           if (c.mensagens[i].role === 'usuario'){
             var t = (c.mensagens[i].display || '').trim();
             if (t){ c.titulo = t.slice(0, 48) + (t.length > 48 ? '…' : ''); }
@@ -240,12 +242,32 @@
 
       function rolar(){ chat.scrollTop = chat.scrollHeight; }
 
-      function addMsg(tipo, texto, nomeAnexo, msgRef){
+      function novaMsg(tipo){
         var bv = chat.querySelector('.boas-vindas');
         if (bv) bv.remove();
-
         var div = document.createElement('div');
         div.className = 'msg ' + tipo;
+        return div;
+      }
+      function fecharMsg(div, nomeAnexo){
+        if (nomeAnexo){
+          var linha = document.createElement('div');
+          linha.className = 'anexo-linha';
+          linha.textContent = '📎 ' + nomeAnexo;
+          div.appendChild(linha);
+        }
+        chat.appendChild(div);
+        rolar();
+      }
+      // Texto digitado pela pessoa: sempre texto puro (nunca vira HTML).
+      function addMsgUsuario(texto, nomeAnexo){
+        var div = novaMsg('usuario');
+        div.textContent = texto;
+        fecharMsg(div, nomeAnexo);
+      }
+
+      function addMsg(tipo, texto, nomeAnexo, msgRef){
+        var div = novaMsg(tipo);
         if (tipo === 'agente'){
           var barra = document.createElement('div'); barra.className = 'barra-copiar';
           var btn = document.createElement('button'); btn.className = 'btn-copiar'; btn.type = 'button'; btn.textContent = '⧉ Copiar';
@@ -262,14 +284,7 @@
         } else {
           div.textContent = texto;
         }
-        if (nomeAnexo){
-          var linha = document.createElement('div');
-          linha.className = 'anexo-linha';
-          linha.textContent = '📎 ' + nomeAnexo;
-          div.appendChild(linha);
-        }
-        chat.appendChild(div);
-        rolar();
+        fecharMsg(div, nomeAnexo);
       }
 
       // Barra de avaliação da resposta (👍/👐). Guarda o voto na mensagem
@@ -499,7 +514,7 @@
             : 'Auditar o plano de tagueamento anexado — Canal: ' + canal + '.';
         }
 
-        addMsg('usuario', displayUser, nomeAnexo);
+        addMsgUsuario(displayUser, nomeAnexo);
         campo.value = '';
         campo.style.height = 'auto';
         limparAnexo();

@@ -15,6 +15,7 @@ import os
 import threading
 from datetime import datetime
 
+from . import console
 from .config import BASE_DIR, PASTA_LOGS
 
 _trava = threading.Lock()
@@ -44,7 +45,7 @@ def registrar(acao, usuario=None, ip=None, **campos):
             with open(_arquivo_do_mes(), "a", encoding="utf-8") as f:
                 f.write(json.dumps(evento, ensure_ascii=False) + "\n")
     except Exception as e:
-        print("[atividade] Falha ao gravar o log ({}).".format(str(e)[:100]))
+        console.escrever("[atividade] Falha ao gravar o log ({}).", str(e)[:100])
 
 
 def listar_meses():
@@ -106,6 +107,6 @@ def backup(destino):
             shutil.copy2(caminho, os.path.join(destino, os.path.basename(caminho)))
             copiados += 1
     except Exception as e:
-        print("[backup] Falha ao copiar os logs para {} ({}).".format(
-            destino, str(e)[:120]))
+        console.escrever("[backup] Falha ao copiar os logs para {} ({}).",
+            destino, str(e)[:120])
     return copiados

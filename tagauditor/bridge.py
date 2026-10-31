@@ -14,6 +14,7 @@ import re
 import threading
 import time
 
+from . import console
 from .config import (
     URL_LOGIN, URL_AGENTE, URL_WORKFLOW_START, URL_WORKFLOW_STATUS, URL_TEXTGEN,
     MODO_ASSINCRONO, ASYNC_VIA_TEXTGEN, MODELO_LLM, OPENAI_API_VERSION,
@@ -66,7 +67,7 @@ def obter_token(forcar=False):
         ):
             return _token_cache["valor"]
 
-        print("[token] Fazendo login para obter novo Bearer token...")
+        console.escrever("[token] Fazendo login para obter novo Bearer token...")
         status, corpo = post_json(URL_LOGIN, {"identificador": IDENTIFICADOR, "senha": SENHA})
         if status < 200 or status >= 300:
             raise RuntimeError("Falha no login ({}): {}".format(status, corpo[:400]))
@@ -86,7 +87,7 @@ def obter_token(forcar=False):
 
         _token_cache["valor"] = token
         _token_cache["obtido_em"] = agora
-        print("[token] OK - token renovado ({}...)".format(token[:24]))
+        console.escrever("[token] OK - token renovado.")
         return token
 
 
@@ -99,8 +100,8 @@ def renovador_token():
             if _token_cache["valor"] is None or idade > (TOKEN_VALIDADE_SEGUNDOS - 5 * 60):
                 obter_token(forcar=True)
         except Exception as e:
-            print("[token] Falha na renovação em 2º plano ({}). Tento de novo em 1 min.".format(
-                str(e)[:120]))
+            console.escrever("[token] Falha na renovação em 2º plano ({}). Tento de novo em 1 min.",
+                str(e)[:120])
 
 
 # ---- Extração do texto da resposta (JSON/SSE em formatos variados) -----------
@@ -468,22 +469,22 @@ def _obter_system_prompt():
         try:
             with open(os.path.join(BASE_DIR, ARQUIVO_SYSTEM_PROMPT), "r", encoding="utf-8") as f:
                 regras = f.read().strip()
-            print("[async] Regras do auditor carregadas de {} ({} caracteres).".format(
-                ARQUIVO_SYSTEM_PROMPT, len(regras)))
+            console.escrever("[async] Regras do auditor carregadas de {} ({} caracteres).",
+                ARQUIVO_SYSTEM_PROMPT, len(regras))
         except Exception as e:
-            print("[async] Não consegui ler {} ({}); sigo sem as regras.".format(
-                ARQUIVO_SYSTEM_PROMPT, str(e)[:100]))
+            console.escrever("[async] Não consegui ler {} ({}); sigo sem as regras.",
+                ARQUIVO_SYSTEM_PROMPT, str(e)[:100])
 
         doc = ""
         if ARQUIVO_DOCUMENTACAO:
             try:
                 with open(os.path.join(BASE_DIR, ARQUIVO_DOCUMENTACAO), "r", encoding="utf-8") as f:
                     doc = f.read().strip()
-                print("[async] Documentação completa carregada de {} ({} caracteres).".format(
-                    ARQUIVO_DOCUMENTACAO, len(doc)))
+                console.escrever("[async] Documentação completa carregada de {} ({} caracteres).",
+                    ARQUIVO_DOCUMENTACAO, len(doc))
             except Exception as e:
-                print("[async] Não consegui ler {} ({}); sigo sem a documentação.".format(
-                    ARQUIVO_DOCUMENTACAO, str(e)[:100]))
+                console.escrever("[async] Não consegui ler {} ({}); sigo sem a documentação.",
+                    ARQUIVO_DOCUMENTACAO, str(e)[:100])
 
         # Evita duplicar a doc caso o arquivo de regras ja a traga embutida.
         ja_tem_doc = ("DOCUMENTACAO OFICIAL" in regras
@@ -528,22 +529,22 @@ def _postar_disparo(url, payload, rotulo):
         except RuntimeError as e:
             # Rede/VPN fora, ou o login-servico falhou: não há status HTTP.
             status, corpo = None, str(e)
-            print("[async] {}: {} (tentativa {}/{}).".format(
-                rotulo, str(e)[:140], tentativa, TENTATIVAS_GATEWAY))
+            console.escrever("[async] {}: {} (tentativa {}/{}).",
+                rotulo, str(e)[:140], tentativa, TENTATIVAS_GATEWAY)
 
         if status is not None:
             if 200 <= status < 300:
                 if tentativa > 1:
-                    print("[async] {}: disparo aceito na tentativa {}.".format(rotulo, tentativa))
+                    console.escrever("[async] {}: disparo aceito na tentativa {}.", rotulo, tentativa)
                 return status, corpo, tentativa
             if status not in _ERROS_HTTP_TRANSITORIOS:
                 return status, corpo, tentativa   # erro definitivo: retentar não ajuda
 
         if tentativa < TENTATIVAS_GATEWAY:
-            print("[async] {}: {} - tentando de novo em {}s ({}/{}).".format(
+            console.escrever("[async] {}: {} - tentando de novo em {}s ({}/{}).",
                 rotulo,
                 "HTTP {} (transitório)".format(status) if status is not None else "sem resposta",
-                PAUSA_ENTRE_TENTATIVAS, tentativa, TENTATIVAS_GATEWAY))
+                PAUSA_ENTRE_TENTATIVAS, tentativa, TENTATIVAS_GATEWAY)
             time.sleep(PAUSA_ENTRE_TENTATIVAS)
 
     if status is None:
@@ -607,16 +608,16 @@ def _aguardar_workflow(exec_id):
         if status is not None and 200 <= status < 300:
             falhas_seguidas, ultima_falha = 0, None
             if primeiro:
-                print("[async] 1ª resposta de status (bruta): {}".format(corpo[:300].replace("\n", " ")))
+                console.escrever("[async] 1ª resposta de status (bruta): {}", corpo[:300].replace("\n", " "))
                 primeiro = False
             obj = _carregar_json(corpo)
             estado = (_achar_campo(obj, _CAMPOS_STATUS) or "").strip().lower()
             classe = _classificar_estado(estado)
             if estado and estado != ultimo:
-                print("[async] status: {}".format(estado))
+                console.escrever("[async] status: {}", estado)
                 ultimo = estado
             if classe in ("ERRO", "OK"):
-                print("[async] resposta final (bruta): {}".format(corpo[:600].replace("\n", " ")))
+                console.escrever("[async] resposta final (bruta): {}", corpo[:600].replace("\n", " "))
             if classe == "ERRO":
                 detalhe = _achar_campo(obj, ("error", "erro", "message", "detail",
                                              "detailed_info")) or corpo[:400]
@@ -701,20 +702,20 @@ def _auditar_async(mensagem, session_id, historico_cliente=None):
     if ASYNC_VIA_TEXTGEN:
         mensagens = list(historico) + [{"role": "user", "content": mensagem}]
         exec_id = _iniciar_textgen(mensagens)
-        print("[async] Geração assíncrona iniciada no textgenerator (execution_id={}, "
-              "{} msg de histórico). Aguardando conclusão...".format(exec_id, len(historico)))
+        console.escrever("[async] Geração assíncrona iniciada no textgenerator (execution_id={}, "
+                         "{} msg de histórico). Aguardando conclusão...", exec_id, len(historico))
     else:
         mensagens = [{"role": "user", "content": mensagem}]
         exec_id = _iniciar_workflow(mensagem)
-        print("[async] workflow iniciado (execution_id={}). Aguardando conclusão...".format(exec_id))
+        console.escrever("[async] workflow iniciado (execution_id={}). Aguardando conclusão...", exec_id)
     bruto, uso = _aguardar_workflow(exec_id)
     if uso is None:
         regras = _obter_system_prompt() if ENVIAR_SYSTEM_PROMPT else ""
         chars_entrada = len(regras) + sum(
             len(str(m.get("content") or "")) for m in mensagens)
         uso = _uso_estimado(chars_entrada, bruto)
-    print("[tokens] entrada={} saida={} total={} ({})".format(
-        uso["entrada"], uso["saida"], uso["total"], uso["fonte"]))
+    console.escrever("[tokens] entrada={} saida={} total={} ({})",
+        uso["entrada"], uso["saida"], uso["total"], uso["fonte"])
     resposta = filtrar_falsos_positivos(bruto)
     if usar_cache:
         # Mantém o cache do servidor só quando o cliente NÃO controla o histórico.
@@ -754,8 +755,8 @@ def gerar_texto(mensagens, system_prompt, modelo=None, max_tokens=None,
     exec_id = _iniciar_textgen(mensagens, system_prompt=system_prompt or "",
                                modelo=modelo, max_tokens=max_tokens,
                                reasoning_effort=reasoning_effort, rotulo=rotulo)
-    print("[async] {}: geração iniciada (execution_id={}, {} mensagem(ns)). "
-          "Aguardando conclusão...".format(rotulo, exec_id, len(mensagens)))
+    console.escrever("[async] {}: geração iniciada (execution_id={}, {} mensagem(ns)). "
+                     "Aguardando conclusão...", rotulo, exec_id, len(mensagens))
     texto, uso = _aguardar_workflow(exec_id)
     if uso is None:
         chars = len(system_prompt or "") + sum(
@@ -764,8 +765,8 @@ def gerar_texto(mensagens, system_prompt, modelo=None, max_tokens=None,
         extra = max(0, int(tokens_extra_estimados or 0))
         uso["entrada"] += extra
         uso["total"] += extra
-    print("[tokens] {}: entrada={} saida={} total={} ({})".format(
-        rotulo, uso["entrada"], uso["saida"], uso["total"], uso["fonte"]))
+    console.escrever("[tokens] {}: entrada={} saida={} total={} ({})",
+        rotulo, uso["entrada"], uso["saida"], uso["total"], uso["fonte"])
     return texto, uso
 
 
@@ -778,7 +779,7 @@ def _chamar_agente(payload, com_stream=False):
         headers["Accept"] = "text/event-stream, application/json"
     status, corpo = post_json(URL_AGENTE, payload, headers)
     if status in (401, 403):
-        print("[agente] {} recebido - renovando token e tentando novamente...".format(status))
+        console.escrever("[agente] {} recebido - renovando token e tentando novamente...", status)
         token = obter_token(forcar=True)
         headers["Authorization"] = "Bearer " + token
         status, corpo = post_json(URL_AGENTE, payload, headers)
@@ -808,32 +809,32 @@ def enviar_para_agente(mensagem, session_id, historico=None):
         if tentativa > 1:
             try:
                 obter_token(forcar=True)
-                print("[agente] Token renovado antes da tentativa {}.".format(tentativa))
+                console.escrever("[agente] Token renovado antes da tentativa {}.", tentativa)
             except Exception as e:
-                print("[agente] Não consegui renovar o token agora ({}); "
-                      "sigo com o atual.".format(str(e)[:120]))
+                console.escrever("[agente] Não consegui renovar o token agora ({}); "
+                                 "sigo com o atual.", str(e)[:120])
 
         try:
             status, corpo = _chamar_agente(payload, usar_stream)
         except RuntimeError as e:
             status, corpo = None, ""
-            print("[agente] Falha de conexão na tentativa {}/{}: {}".format(
-                tentativa, TENTATIVAS_GATEWAY, str(e)[:160]))
+            console.escrever("[agente] Falha de conexão na tentativa {}/{}: {}",
+                tentativa, TENTATIVAS_GATEWAY, str(e)[:160])
             if tentativa >= TENTATIVAS_GATEWAY:
                 raise
             time.sleep(PAUSA_ENTRE_TENTATIVAS)
             continue
 
-        print("[agente] HTTP {} (tentativa {}/{}{}) | resposta bruta (inicio): {}".format(
+        console.escrever("[agente] HTTP {} (tentativa {}/{}{}) | resposta bruta (inicio): {}",
             status, tentativa, TENTATIVAS_GATEWAY,
-            " stream" if usar_stream else "", corpo[:400].replace("\n", " ")))
+            " stream" if usar_stream else "", corpo[:400].replace("\n", " "))
 
         if 200 <= status < 300:
             erro_interno = None
             exec_id = _parece_ack_async(_carregar_json(corpo))
             if exec_id:
-                print("[agente] Execução assíncrona detectada (workflow_execution_id={}). "
-                      "Aguardando o resultado na Workflow Response...".format(exec_id))
+                console.escrever("[agente] Execução assíncrona detectada (workflow_execution_id={}). "
+                                 "Aguardando o resultado na Workflow Response...", exec_id)
                 texto_w, uso_w = _aguardar_workflow(exec_id)
                 return texto_w, (uso_w or _uso_estimado(len(mensagem), texto_w))
 
@@ -844,8 +845,8 @@ def enviar_para_agente(mensagem, session_id, historico=None):
             if estado_s == "ERRO":
                 erro_interno = texto_s or "erro no stream"
                 if tentativa < TENTATIVAS_GATEWAY:
-                    print("[agente] Stream retornou erro (\"{}\") - tentando de novo em {}s...".format(
-                        (texto_s or "")[:90].replace("\n", " "), PAUSA_ENTRE_TENTATIVAS))
+                    console.escrever("[agente] Stream retornou erro (\"{}\") - tentando de novo em {}s...",
+                        (texto_s or "")[:90].replace("\n", " "), PAUSA_ENTRE_TENTATIVAS)
                     time.sleep(PAUSA_ENTRE_TENTATIVAS)
                 continue
 
@@ -855,9 +856,9 @@ def enviar_para_agente(mensagem, session_id, historico=None):
                                or _uso_estimado(len(mensagem), texto))
             erro_interno = texto
             if tentativa < TENTATIVAS_GATEWAY:
-                print("[agente] Serviço interno do agente falhou (\"{}\") - "
-                      "tentando de novo em {}s...".format(
-                          texto[:90].replace("\n", " "), PAUSA_ENTRE_TENTATIVAS))
+                console.escrever("[agente] Serviço interno do agente falhou (\"{}\") - "
+                                 "tentando de novo em {}s...",
+                                 texto[:90].replace("\n", " "), PAUSA_ENTRE_TENTATIVAS)
                 time.sleep(PAUSA_ENTRE_TENTATIVAS)
             continue
 
@@ -868,14 +869,14 @@ def enviar_para_agente(mensagem, session_id, historico=None):
             usar_stream = False
             payload.pop("stream", None)
             payload.pop("async", None)
-            print("[agente] HTTP {} com stream/async ligado - reenviando em "
-                  "modo clássico (sem stream/async)...".format(status))
+            console.escrever("[agente] HTTP {} com stream/async ligado - reenviando em "
+                             "modo clássico (sem stream/async)...", status)
             tentativa -= 1
             continue
 
         if status in _ERROS_HTTP_TRANSITORIOS and tentativa < TENTATIVAS_GATEWAY:
-            print("[agente] HTTP {} (transitório) - tentando de novo em {}s...".format(
-                status, PAUSA_ENTRE_TENTATIVAS))
+            console.escrever("[agente] HTTP {} (transitório) - tentando de novo em {}s...",
+                status, PAUSA_ENTRE_TENTATIVAS)
             time.sleep(PAUSA_ENTRE_TENTATIVAS)
             continue
         break
@@ -906,9 +907,9 @@ def enviar_para_agente(mensagem, session_id, historico=None):
 def aquecer_agente():
     try:
         sessao = "999{:09d}".format(int(time.time()) % 10 ** 9)
-        print("[aquecimento] Acordando o agente (pode levar até ~1 min)...")
+        console.escrever("[aquecimento] Acordando o agente (pode levar até ~1 min)...")
         enviar_para_agente("oi", sessao)
-        print("[aquecimento] Agente acordado - pronto para auditar.")
+        console.escrever("[aquecimento] Agente acordado - pronto para auditar.")
     except Exception as e:
-        print("[aquecimento] Agente ainda lento ({}). "
-              "Se a 1ª auditoria falhar, o retry automático tenta de novo.".format(str(e)[:140]))
+        console.escrever("[aquecimento] Agente ainda lento ({}). "
+                         "Se a 1ª auditoria falhar, o retry automático tenta de novo.", str(e)[:140])

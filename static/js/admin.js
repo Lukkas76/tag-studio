@@ -1120,13 +1120,10 @@
   function preencherSelect(sel, valores, rotulo){
     var atual = sel.value;
     sel.innerHTML = '';
-    var opTodos = document.createElement('option');
-    opTodos.value = ''; opTodos.textContent = rotulo;
-    sel.appendChild(opTodos);
+    // new Option(texto, valor): o texto entra como texto puro, nunca como HTML
+    sel.add(new Option(rotulo, ''));
     valores.forEach(function(v){
-      var op = document.createElement('option');
-      op.value = v.valor; op.textContent = v.texto;
-      sel.appendChild(op);
+      sel.add(new Option(String(v.texto), String(v.valor)));
     });
     sel.value = atual;
     if (sel.selectedIndex < 0) sel.selectedIndex = 0;

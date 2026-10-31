@@ -44,6 +44,7 @@ import zlib
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 
+from . import console
 from .config import (
     FIGMA_TOKEN, FIGMA_API, PROXY_FIGMA, FIGMA_TIMEOUT, FIGMA_ESCALA_MAX,
     FIGMA_LARGURA_ALVO, FIGMA_MAX_FRAMES, FIGMA_MAX_OPCOES, FIGMA_MAX_ELEMENTOS,
@@ -430,7 +431,7 @@ def _rota():
             anunciar = _rota_estado["anunciada"] != fixo
             _rota_estado["anunciada"] = fixo
         if anunciar:
-            print("[figma] Rota até a API do Figma: proxy {} (PROXY_FIGMA)".format(_mascarar(fixo)))
+            console.escrever("[figma] Rota até a API do Figma: proxy {} (PROXY_FIGMA)", _mascarar(fixo))
         return fixo
     # Uma descoberta por vez: buscas simultâneas esperam o resultado da
     # primeira em vez de testarem todos os proxies em paralelo.
@@ -444,12 +445,12 @@ def _rota():
         with _trava_rota:
             _rota_estado.update(testado_em=time.time(), proxy=proxy, ok=ok)
     if ok:
-        print("[figma] Rota até a API do Figma: {}".format(
-            "proxy " + _mascarar(proxy) if proxy else "conexão direta"))
+        console.escrever("[figma] Rota até a API do Figma: {}",
+            "proxy " + _mascarar(proxy) if proxy else "conexão direta")
         return proxy
-    print("[figma] AVISO: API do Figma inalcançável (testei conexão direta, o proxy do "
-          "login Google e os proxies do sistema/PAC). Preencha PROXY_FIGMA no "
-          "tagauditor/config.py (ex.: http://proxy.bradesco.com.br:8080).")
+    console.escrever("[figma] AVISO: API do Figma inalcançável (testei conexão direta, o proxy do "
+                     "login Google e os proxies do sistema/PAC). Preencha PROXY_FIGMA no "
+                     "tagauditor/config.py (ex.: http://proxy.bradesco.com.br:8080).")
     raise ErroFigma(_msg_sem_rota(), 502)
 
 
@@ -568,8 +569,8 @@ def _msg_limite(cabecalhos, ctx):
     espera = cabecalhos.get("Retry-After")
     tipo_limite = str(cabecalhos.get("X-Figma-Rate-Limit-Type") or "").strip().lower()
     plano = str(cabecalhos.get("X-Figma-Plan-Tier") or "").strip().lower()
-    print("[figma] HTTP 429 (limite da API) | Retry-After: {} | plano: {} | tipo: {}".format(
-        espera or "-", plano or "-", tipo_limite or "-"))
+    console.escrever("[figma] HTTP 429 (limite da API) | Retry-After: {} | plano: {} | tipo: {}",
+        espera or "-", plano or "-", tipo_limite or "-")
     msg = "O Figma atingiu o limite de chamadas da API para {}. Tente de novo em {}.".format(
         _quem(ctx), _formatar_espera(espera))
     if tipo_limite == "low":
@@ -1459,8 +1460,8 @@ def _baixar_png_ou_falha(url):
     except ErroFigma as e:
         if e.status != 502:
             raise
-        print("[figma] Download da imagem falhou ({}); a tela segue só com as "
-              "camadas.".format(str(e)[:160]))
+        console.escrever("[figma] Download da imagem falhou ({}); a tela segue só com as "
+                         "camadas.", str(e)[:160])
         return None, None, None, str(e)
 
 
@@ -1548,6 +1549,7 @@ def buscar(url, ids=None, token_usuario=None):
     except ErroFigma:
         raise
     except Exception:
-        print("[figma] Falha inesperada na busca:\n" + _sem_token(traceback.format_exc(), token))
+        console.escrever("[figma] Falha inesperada na busca: {}",
+                         _sem_token(traceback.format_exc(), token))
         raise ErroFigma("Falha inesperada ao ler o Figma. Tente de novo; se persistir, "
                         "avise o desenvolvedor.", 502)

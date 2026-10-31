@@ -16,11 +16,47 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from . import console
 from .config import (
     CONFLUENCE_TOKEN, CONFLUENCE_USUARIO, CONFLUENCE_SENHA, CONFLUENCE_TIMEOUT,
+    CONFLUENCE_ORIGENS,
 )
 from .rede import CTX_SSL
 from .plano import _RE_TAG, _RE_ESPACO
+
+
+def _origem_permitida(url):
+    """Origem de CONFLUENCE_ORIGENS que a URL usa (esquema://host[:porta]).
+    Levanta ValueError se for outro endereço: o servidor só fala com o
+    Confluence do banco (o token vai no cabeçalho de toda requisição)."""
+    u = urllib.parse.urlsplit(url)
+    origem = "{}://{}".format(u.scheme, u.netloc).lower()
+    permitida = next((o for o in CONFLUENCE_ORIGENS if o.lower() == origem), None)
+    if permitida is None:
+        raise ValueError("Essa URL não é do Confluence do banco. Cole o endereço de "
+                         "uma página de {}.".format(CONFLUENCE_ORIGENS[0]))
+    return permitida
+
+
+def _url_confluence(url):
+    """A mesma URL, remontada sobre a origem oficial (caminho e query
+    reescapados; fragmento descartado)."""
+    u = urllib.parse.urlsplit(url)
+    caminho = urllib.parse.quote(u.path or "/", safe="/%:@!$&'()*+,;=-._~")
+    consulta = urllib.parse.quote(u.query, safe="/%:@!$&'()*+,;=-._~?")
+    return _origem_permitida(url) + caminho + ("?" + consulta if consulta else "")
+
+
+class _RedirecionamentoSeguro(urllib.request.HTTPRedirectHandler):
+    """Segue redirect (link curto /x/...) só para as origens do Confluence."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _origem_permitida(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_ABRIR = urllib.request.build_opener(_RedirecionamentoSeguro,
+                                     urllib.request.HTTPSHandler(context=CTX_SSL))
 
 
 def _carregar_json(corpo):
@@ -51,15 +87,16 @@ def _headers_confluence():
 
 
 def _get_confluence(url, tentativas=3):
-    """GET no Confluence (conexão direta, rede interna).
+    """GET no Confluence (conexão direta, rede interna), só nas origens de
+    CONFLUENCE_ORIGENS (ValueError fora delas, inclusive via redirect).
     Devolve (status, bytes, url_final_após_redirects).
     HTTP 429 (limite de requisições) é retentado com espera automática."""
-    req = urllib.request.Request(url)
+    req = urllib.request.Request(_url_confluence(url))
     for chave, valor in _headers_confluence().items():
         req.add_header(chave, valor)
     for tentativa in range(1, tentativas + 1):
         try:
-            with urllib.request.urlopen(req, timeout=CONFLUENCE_TIMEOUT, context=CTX_SSL) as resp:
+            with _ABRIR.open(req, timeout=CONFLUENCE_TIMEOUT) as resp:
                 return resp.status, resp.read(), resp.geturl()
         except urllib.error.HTTPError as e:
             try:
@@ -77,19 +114,21 @@ def _get_confluence(url, tentativas=3):
                                             "x-ratelimit-fillrate", "content-type")}
                 except Exception:
                     cab = {}
-                print("[confluence] HTTP 429 | headers: {} | corpo: {}".format(
-                    cab, corpo[:200].decode("utf-8", errors="replace").replace("\n", " ")))
+                console.escrever("[confluence] HTTP 429 | headers: {} | corpo: {}",
+                    cab, corpo[:200].decode("utf-8", errors="replace").replace("\n", " "))
                 if tentativa < tentativas:
                     try:
                         espera = int((e.headers.get("Retry-After") or "0").strip())
                     except Exception:
                         espera = 0
                     espera = min(max(espera, 2 * tentativa), 10)
-                    print("[confluence] aguardo {}s e tento de novo ({}/{})...".format(
-                        espera, tentativa, tentativas))
+                    console.escrever("[confluence] aguardo {}s e tento de novo ({}/{})...",
+                        espera, tentativa, tentativas)
                     time.sleep(espera)
                     continue
             return e.code, corpo, url
+        except ValueError:
+            raise       # redirect para fora das origens: a mensagem já explica
         except Exception as e:
             raise ValueError(
                 "Não consegui conectar ao Confluence ({}). O servidor precisa "
@@ -128,7 +167,7 @@ def _confluence_base_pagina(url):
     if u.scheme not in ("http", "https") or not u.netloc:
         raise ValueError("Isso não parece uma URL do Confluence. Cole a URL completa da página.")
     caminho = u.path or "/"
-    base = u.scheme + "://" + u.netloc
+    base = _origem_permitida(url)
     for marcador in ("/pages/", "/display/", "/download/", "/spaces/", "/x/"):
         idx = caminho.find(marcador)
         if idx >= 0:
@@ -553,8 +592,11 @@ def _extrair_padroes_bookmarklet(raiz):
                     obs = []
                     for p in _n_todos(bloco, lambda x: x.tag in ("p", "th", "td")):
                         t_p = _n_texto(p)
-                        if t_p.startswith("Observações") or t_p.startswith("Observação"):
-                            t_p = re.sub(r"^Observaç(?:ões|ão)\s*:?\s*", "", t_p).strip()
+                        prefixo = next((x for x in ("Observações", "Observação")
+                                        if t_p.startswith(x)), None)
+                        if prefixo:
+                            # tira "Observações:" do começo (sem regex)
+                            t_p = t_p[len(prefixo):].lstrip(" \t\r\n\f\v:").strip()
                             if t_p:
                                 obs.append(t_p)
                     riches = [{"label": "Observações", "html": " ".join(obs)}] if obs else []
@@ -605,8 +647,8 @@ def _montar_plano_de_html(titulo, corpo_html):
     try:
         secoes, n = _extrair_padroes_bookmarklet(_dom(corpo_html))
     except Exception as e:
-        print("[confluence] Varredura de layouts falhou ({}); tento os blocos "
-              "<pre> soltos.".format(str(e)[:100]))
+        console.escrever("[confluence] Varredura de layouts falhou ({}); tento os blocos "
+                         "<pre> soltos.", str(e)[:100])
         secoes, n = {}, 0
 
     if not n:
@@ -707,8 +749,8 @@ def confluence_baixar_json(url, nome=None):
         anexos = _confluence_anexos_json(base, pid)
         modo_ui = False
     except _RateLimit429:
-        print("[confluence] API REST bloqueada pelo rate limit do admin (429). "
-              "Mudando para o modo navegador (páginas de interface).")
+        console.escrever("[confluence] API REST bloqueada pelo rate limit do admin (429). "
+                         "Mudando para o modo navegador (páginas de interface).")
         anexos = _confluence_anexos_via_ui(base, pid)
         modo_ui = True
 

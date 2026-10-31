@@ -22,6 +22,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from . import console
 from .config import (
     GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, URL_GOOGLE_DEVICE_CODE,
     URL_GOOGLE_TOKEN, PROXY_GOOGLE, EMAILS_AUTORIZADOS, DOMINIOS_AUTORIZADOS,
@@ -41,15 +42,16 @@ def _decodificar_jwt_payload(token_jwt):
 
 
 def _user_id_tagueamento(email):
-    """user_id do mapa de tagueamento: MD5 em HEXA MAIÚSCULO, o mesmo formato do
-    exemplo do documento ('BD07D76E9A4F636AE05382A0D10A0F21').
+    """user_id do mapa de tagueamento: 32 caracteres em HEXA MAIÚSCULO, o mesmo
+    formato do exemplo do documento ('BD07D76E9A4F636AE05382A0D10A0F21').
 
-    O mapa define o hash como agência + conta sem dígito, que é o identificador
-    dos canais do cliente. O Tag Auditor é ferramenta interna e entra com conta
-    Google — não existe agência/conta aqui —, então o hash é do e-mail: mesmo
-    formato, ID estável por pessoa e sem expor o e-mail no GA4.
+    O mapa define o hash como MD5 de agência + conta sem dígito, que é o
+    identificador dos canais do cliente. O Tag Auditor é ferramenta interna e
+    entra com conta Google — não existe agência/conta aqui —, então o hash é do
+    e-mail: mesmo formato, ID estável por pessoa e sem expor o e-mail no GA4.
+    SHA-256 (e não MD5, algoritmo quebrado) cortado nos 32 primeiros dígitos.
     """
-    return hashlib.md5(email.encode("utf-8")).hexdigest().upper()
+    return hashlib.sha256(email.encode("utf-8")).hexdigest()[:32].upper()
 
 
 def _usuario_dos_claims(claims):
@@ -190,11 +192,11 @@ def rota_google():
     with _trava_proxy:
         _proxy_google["proxy"], _proxy_google["ok"] = proxy_ok, ok
     if ok:
-        print("[google] Rota até o Google: {}".format(proxy_ok or "conexão direta"))
+        console.escrever("[google] Rota até o Google: {}", proxy_ok or "conexão direta")
     else:
-        print("[google] AVISO: Google inalcançável (testei conexão direta e os "
-              "proxies do sistema/PAC). Preencha PROXY_GOOGLE no "
-              "tagauditor/config.py (ex.: http://proxy.bradesco.com.br:8080).")
+        console.escrever("[google] AVISO: Google inalcançável (testei conexão direta e os "
+                         "proxies do sistema/PAC). Preencha PROXY_GOOGLE no "
+                         "tagauditor/config.py (ex.: http://proxy.bradesco.com.br:8080).")
     return proxy_ok
 
 

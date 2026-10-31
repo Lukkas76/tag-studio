@@ -5,6 +5,8 @@ de novo: python tag_auditor_chat.py).
 """
 import os
 
+from . import console
+
 # ---- Credenciais -------------------------------------------------------------
 # Os VALORES ficam em tagauditor/segredos.py, que nao vai para o Git (modelo
 # em branco: segredos_exemplo.py). Sem o arquivo, cada credencial vale "".
@@ -12,8 +14,8 @@ try:
     from . import segredos as _segredos
 except ImportError:
     _segredos = None
-    print("[config] tagauditor/segredos.py nao encontrado: copie o "
-          "segredos_exemplo.py e preencha as credenciais.")
+    console.escrever("[config] tagauditor/segredos.py nao encontrado: copie o "
+                     "segredos_exemplo.py e preencha as credenciais.")
 
 
 def _segredo(nome):
@@ -192,6 +194,13 @@ CONFLUENCE_TOKEN = _segredo("CONFLUENCE_TOKEN")
 CONFLUENCE_USUARIO = _segredo("CONFLUENCE_USUARIO")
 CONFLUENCE_SENHA = _segredo("CONFLUENCE_SENHA")
 CONFLUENCE_TIMEOUT = 30
+# Unicos enderecos (esquema://host[:porta]) que a busca acessa, inclusive em
+# redirecionamentos: URL colada de outro lugar e recusada, e o token do
+# Confluence nunca vai para outro servidor.
+CONFLUENCE_ORIGENS = (
+    "https://confluence.bradesco.com.br:8443",
+    "https://confluence.bradesco.com.br",
+)
 
 # ---- Tag Planner (o que taguear a partir da tela + pergunta de negocio) -------
 # A pessoa envia imagens da tela (upload ou URL do Figma) e a pergunta de

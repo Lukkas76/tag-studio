@@ -1,0 +1,11 @@
+.git
+.github
+.venv
+venv
+mend
+__pycache__
+*.pyc
+logs
+logs_teste_console
+registro.txt
+tagauditor/segredos.py

@@ -8,6 +8,7 @@ Depois do login a pessoa cai na Home da plataforma e escolhe a ferramenta:
 
 Mapa dos módulos:
     config.py       Todas as configurações editáveis (URLs, chaves, flags)
+    console.py      Saída de console do servidor (o log do processo)
     rede.py         HTTP básico (POST/GET JSON) para as APIs internas
     login_google.py Login com conta Google (fluxo de dispositivo) + proxy
     sessoes.py      Sessões ativas e registro de logins (registro.txt)

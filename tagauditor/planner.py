@@ -32,7 +32,6 @@ import json
 import math
 import os
 import re
-import sys
 import threading
 import time
 import unicodedata
@@ -41,6 +40,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from . import atividade
 from . import bridge
+from . import console
 from .config import (
     BASE_DIR, PLANNER_ARQUIVO_PROMPT, PLANNER_ARQUIVO_DOCUMENTACAO,
     PLANNER_MODELO_LLM, PLANNER_REASONING_EFFORT, PLANNER_MAX_TOKENS_RESPOSTA,
@@ -60,8 +60,8 @@ try:
     from . import figma
 except Exception as _erro_import_figma:
     figma = None
-    print("[planner] Busca no Figma indisponível: o módulo figma.py não carregou "
-          "({}).".format(str(_erro_import_figma)[:150]))
+    console.escrever("[planner] Busca no Figma indisponível: o módulo figma.py não carregou "
+                     "({}).", str(_erro_import_figma)[:150])
 
 
 # ---- Parâmetros de imagem usados pelo navegador (TAG_CONFIG.planner) ---------
@@ -214,20 +214,9 @@ def sem_surrogates(texto):
 
 
 def _console(mensagem):
-    """print() que nunca derruba a requisição: a janela do servidor pode estar
-    num console/arquivo em cp1252 e a mensagem pode trazer texto do usuário
-    (nome de tela com emoji, por exemplo). Só o caractere que o console não
-    sabe mostrar vira "?"; os acentos continuam."""
-    try:
-        print(mensagem)
-    except UnicodeEncodeError:
-        codificacao = getattr(sys.stdout, "encoding", None) or "ascii"
-        try:
-            print(mensagem.encode(codificacao, "replace").decode(codificacao))
-        except Exception:
-            pass
-    except Exception:
-        pass
+    """Linha no console (console.escrever): a mensagem pode trazer texto do
+    usuário (nome de tela com emoji, por exemplo) e sai numa linha só."""
+    console.escrever("{}", mensagem)
 
 
 def _texto(valor, limite=None, linha_unica=False):

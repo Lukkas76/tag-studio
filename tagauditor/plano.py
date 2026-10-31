@@ -10,6 +10,7 @@ import json
 import re
 import unicodedata
 
+from . import console
 from .config import (
     SANITIZAR_CHAVES_DUPLAS, REMOVER_CAMPOS_BASE64, TAMANHO_MIN_BASE64,
     ENXUGAR_PLANO, LIMITE_VALOR_STR, LIMITE_OBS_STR, MINIFICAR_JSON,
@@ -214,17 +215,17 @@ def montar_mensagem(texto_usuario, json_anexo):
             stats = {"campos": 0, "chars": 0}
             objeto = limpar_base64(objeto, stats)
             if stats["campos"]:
-                print("[limpeza] {} campo(s) de imagem/base64 removido(s) "
-                      "(-{} caracteres) antes do envio.".format(
-                          stats["campos"], stats["chars"]))
+                console.escrever("[limpeza] {} campo(s) de imagem/base64 removido(s) "
+                                 "(-{} caracteres) antes do envio.",
+                                 stats["campos"], stats["chars"])
 
         if ENXUGAR_PLANO:
             antes = len(json.dumps(objeto, ensure_ascii=False))
             objeto, aplicado = enxugar_plano(objeto)
             depois = len(json.dumps(objeto, ensure_ascii=False))
             if aplicado and antes - depois > 0:
-                print("[enxugar] plano reduzido de {} para {} caracteres "
-                      "(mantidos apenas eventos/parametros/canal).".format(antes, depois))
+                console.escrever("[enxugar] plano reduzido de {} para {} caracteres "
+                                 "(mantidos apenas eventos/parametros/canal).", antes, depois)
 
         if MINIFICAR_JSON:
             json_texto = json.dumps(objeto, ensure_ascii=False, separators=(",", ":"))

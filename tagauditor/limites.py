@@ -33,6 +33,7 @@ import json
 import re
 import unicodedata
 
+from . import console
 from .config import (
     VALIDAR_LIMITES_GA4, LIMITE_NOME_EVENTO, LIMITE_NOME_PARAMETRO,
     LIMITE_VALOR_PARAMETRO, LIMITE_PARAMS_POR_EVENTO,
@@ -326,22 +327,22 @@ def aplicar_limites_ga4(texto, json_anexo):
         return texto
     achados, eventos = validar_limites(objeto)
     if not eventos:
-        print("[limites] nenhum evento reconhecido no plano — validação de "
-              "limites do GA4 não aplicada.")
+        console.escrever("[limites] nenhum evento reconhecido no plano — validação de "
+                         "limites do GA4 não aplicada.")
         return texto
 
     if "|" in texto:
         texto, removidas = percorrer_tabelas(texto, _linha_de_limite)
         if removidas:
-            print("[limites] {} apontamento(s) de tamanho da IA substituído(s) "
-                  "pela contagem em código.".format(removidas))
+            console.escrever("[limites] {} apontamento(s) de tamanho da IA substituído(s) "
+                             "pela contagem em código.", removidas)
     texto = texto.rstrip()
     if achados:
-        print("[limites] {} violação(ões) de limite do GA4 em {} evento(s).".format(
-            len(achados), eventos))
+        console.escrever("[limites] {} violação(ões) de limite do GA4 em {} evento(s).",
+            len(achados), eventos)
         return texto + "\n\n" + _tabela(achados)
-    print("[limites] {} evento(s) conferido(s): nenhum limite do GA4 "
-          "estourado.".format(eventos))
+    console.escrever("[limites] {} evento(s) conferido(s): nenhum limite do GA4 "
+                     "estourado.", eventos)
     return texto + ("\n\n> ✅ **Limites técnicos do GA4:** {} evento(s) "
                     "conferido(s) automaticamente — nenhum limite de tamanho ou "
                     "de quantidade estourado.".format(eventos))

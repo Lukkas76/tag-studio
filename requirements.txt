@@ -1,0 +1,3 @@
+# Tag Studio usa so a biblioteca padrao do Python.
+# setuptools: o venv do Python 3.12 nao traz mais; a pipeline precisa para rodar o setup.py.
+setuptools==84.2.1

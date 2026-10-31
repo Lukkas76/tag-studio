@@ -1,5 +1,6 @@
 """Sessões ativas (token -> usuário) e registro do último login por conta."""
 import os
+import secrets
 from datetime import datetime
 
 from .config import BASE_DIR, ARQUIVO_REGISTRO
@@ -8,6 +9,31 @@ from .config import BASE_DIR, ARQUIVO_REGISTRO
 SESSOES_ATIVAS = {}
 
 _CAMINHO_REGISTRO = os.path.join(BASE_DIR, ARQUIVO_REGISTRO)
+
+
+def _chave_da_sessao(token):
+    """Chave guardada em SESSOES_ATIVAS que bate com o token recebido, ou None.
+    Compara em tempo constante (o tempo de resposta não revela quanto de um
+    token chutado acertou) e sobre uma cópia (outra thread pode logar agora)."""
+    if not token:
+        return None
+    recebido = token.encode("utf-8", "replace")
+    for chave in list(SESSOES_ATIVAS):
+        if secrets.compare_digest(chave.encode("utf-8"), recebido):
+            return chave
+    return None
+
+
+def usuario_da_sessao(token):
+    """Usuário dono do token de sessão ({email, nome, foto}) ou None."""
+    chave = _chave_da_sessao(token)
+    return SESSOES_ATIVAS.get(chave) if chave else None
+
+
+def encerrar_sessao(token):
+    """Remove a sessão do token (logout). Devolve o usuário que saiu ou None."""
+    chave = _chave_da_sessao(token)
+    return SESSOES_ATIVAS.pop(chave, None) if chave else None
 
 
 def atualizar_registro_login(email):

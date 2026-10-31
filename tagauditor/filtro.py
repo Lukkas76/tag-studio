@@ -11,6 +11,7 @@ nesses padroes conhecidos sao removidas. Se a tabela ficar vazia, ela vira
 import re
 import unicodedata
 
+from . import console
 from .config import FILTRAR_FALSOS_POSITIVOS
 
 _RE_ESPACO = re.compile(r"\s+")
@@ -187,6 +188,6 @@ def filtrar_falsos_positivos(texto):
         return texto
     texto, removidas = percorrer_tabelas(texto, _fp_linha_falsa)
     if removidas:
-        print("[filtro] {} apontamento(s) de falso positivo removido(s) "
-              "da auditoria.".format(removidas))
+        console.escrever("[filtro] {} apontamento(s) de falso positivo removido(s) "
+                         "da auditoria.", removidas)
     return texto

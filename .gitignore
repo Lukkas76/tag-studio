@@ -20,6 +20,8 @@ Termos de Adesão - Parametros antigos.json
 # Python / sistema
 __pycache__/
 *.pyc
+.coverage
+.pytest_cache/
 *.zip
 .claude/
 Thumbs.db

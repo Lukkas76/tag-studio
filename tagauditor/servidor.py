@@ -45,6 +45,7 @@ import zipfile
 from datetime import datetime
 
 from . import atividade
+from . import console
 from . import planner
 from .config import (
     BASE_DIR, PORTA_INICIAL, MODO_ASSINCRONO, TAMANHO_MAX_PARTE,
@@ -65,7 +66,9 @@ from .filtro import filtrar_falsos_positivos
 from .limites import aplicar_limites_ga4
 from .login_google import google_device_inicio, google_device_status, rota_google
 from .plano import montar_mensagem
-from .sessoes import SESSOES_ATIVAS, atualizar_registro_login
+from .sessoes import (
+    SESSOES_ATIVAS, atualizar_registro_login, encerrar_sessao, usuario_da_sessao,
+)
 
 # ---- Frontend estatico (servido de ./static) --------------------------------
 _STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -78,6 +81,30 @@ _MIME_ESTATICO = {
     ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
     ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
     ".ico": "image/x-icon",
+}
+
+
+def _listar_estaticos():
+    """(nome relativo com "/", caminho no disco) de cada arquivo de ./static
+    com extensão conhecida: é tudo o que o servidor aceita servir."""
+    achados = []
+    for pasta, _subpastas, arquivos in os.walk(_STATIC_DIR):
+        for nome in arquivos:
+            if os.path.splitext(nome)[1].lower() in _MIME_ESTATICO:
+                caminho = os.path.join(pasta, nome)
+                relativo = os.path.relpath(caminho, _STATIC_DIR).replace(os.sep, "/")
+                achados.append((relativo, caminho))
+    return tuple(achados)
+
+
+# Montada na subida do servidor: arquivo NOVO em ./static pede reinício
+# (editar um que já existe não pede).
+_ARQUIVOS_ESTATICOS = _listar_estaticos()
+
+# Todo Content-Type que o servidor responde sai desta lista.
+_TIPOS_RESPOSTA = frozenset(_MIME_ESTATICO.values()) | {
+    "application/json; charset=utf-8", "text/plain; charset=utf-8",
+    "text/html; charset=utf-8", "text/csv; charset=utf-8", "application/zip",
 }
 
 
@@ -173,21 +200,19 @@ def _trocar_placeholders(texto):
 
 
 def _ler_estatico(nome):
-    """Le um arquivo de ./static com seguranca (sem path traversal).
-    Aceita subpastas (ex.: js/chat.js). Devolve (bytes, mime) ou (None, None)."""
-    nome = (nome or "").replace("\\", "/")
-    if not nome or nome.startswith(("/", ".")) or ".." in nome:
+    """Lê um arquivo de ./static. Aceita subpastas (ex.: js/chat.js).
+    Sem path traversal: o nome pedido só é COMPARADO com _ARQUIVOS_ESTATICOS
+    e nunca vira caminho de disco. Devolve (bytes, mime) ou (None, None)."""
+    pedido = (nome or "").replace("\\", "/")
+    caminho = next((c for n, c in _ARQUIVOS_ESTATICOS if n == pedido), None)
+    if caminho is None:
         return None, None
-    caminho = os.path.normpath(os.path.join(_STATIC_DIR, nome))
-    # o caminho final TEM de continuar dentro de ./static
-    if os.path.commonprefix([caminho, _STATIC_DIR]) != _STATIC_DIR:
+    mime = _MIME_ESTATICO[os.path.splitext(caminho)[1].lower()]
+    try:
+        with open(caminho, "rb") as f:
+            return f.read(), mime
+    except OSError:
         return None, None
-    if not os.path.isfile(caminho):
-        return None, None
-    ext = os.path.splitext(caminho)[1].lower()
-    mime = _MIME_ESTATICO.get(ext, "application/octet-stream")
-    with open(caminho, "rb") as f:
-        return f.read(), mime
 
 
 SESSION_ID = None
@@ -250,24 +275,33 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
     def log_message(self, formato, *args):
         pass
 
-    def _responder(self, status, corpo, tipo="application/json; charset=utf-8"):
-        # "replace": meio emoji (surrogate solto vindo do navegador) não pode
-        # derrubar a resposta depois do trabalho feito.
-        dados = corpo.encode("utf-8", "replace")
+    def _enviar(self, status, dados, tipo, extras=()):
+        """Única saída de resposta. Content-Type só de _TIPOS_RESPOSTA; o
+        tamanho vai como número (int); HSTS (vale quando servido por HTTPS) e
+        nosniff (o navegador não "adivinha" que um JSON é HTML) em TODA resposta."""
+        tipo_ok = next((t for t in _TIPOS_RESPOSTA if t == tipo), "application/octet-stream")
         self.send_response(status)
-        self.send_header("Content-Type", tipo)
-        self.send_header("Content-Length", str(len(dados)))
+        self.send_header("Content-Type", tipo_ok)
+        self.send_header("Content-Length", str(int(len(dados))))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        for nome, valor in extras:
+            self.send_header(nome, valor)
         self.end_headers()
         self.wfile.write(dados)
 
+    def _responder(self, status, corpo, tipo="application/json; charset=utf-8"):
+        if tipo.startswith("application/json"):
+            # Mesmo JSON (JSON.parse devolve os mesmos textos), sem "<", ">" e
+            # "&" literais: a resposta nunca é lida como HTML.
+            corpo = corpo.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+        # "replace": meio emoji (surrogate solto vindo do navegador) não pode
+        # derrubar a resposta depois do trabalho feito.
+        self._enviar(status, corpo.encode("utf-8", "replace"), tipo)
+
     def _responder_bytes(self, status, dados, tipo):
-        self.send_response(status)
-        self.send_header("Content-Type", tipo)
-        self.send_header("Content-Length", str(len(dados)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(dados)
+        self._enviar(status, dados, tipo)
 
     def _servir_pagina(self, nome):
         """Serve uma página HTML de ./static (index, auditor, planner, admin)
@@ -296,7 +330,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
 
     def _usuario_atual(self):
         """Usuário logado desta requisição ({email, nome, foto}) ou None."""
-        return SESSOES_ATIVAS.get(self._token_sessao() or "")
+        return usuario_da_sessao(self._token_sessao())
 
     def _ip(self):
         try:
@@ -344,7 +378,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
             self._responder(200, json.dumps(_resumo_do_mes(usuario.get("email", "")),
                                             ensure_ascii=False))
         except Exception as e:
-            print("[resumo][erro] {}".format(str(e)[:200]))
+            console.escrever("[resumo][erro] {}", str(e)[:200])
             self._responder(500, json.dumps(
                 {"erro": "Falha ao montar o resumo de uso: {}".format(str(e)[:200])},
                 ensure_ascii=False))
@@ -382,18 +416,11 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
             nome_zip = "tag-auditor-projeto_{}.zip".format(datetime.now().strftime("%Y-%m-%d"))
             atividade.registrar("admin_backup", usuario, self._ip(),
                                 arquivo=nome_zip, bytes=len(dados))
-            print("[admin] {} baixou o projeto ({} KB).".format(
-                usuario["email"], len(dados) // 1024))
-            self.send_response(200)
-            self.send_header("Content-Type", "application/zip")
-            self.send_header("Content-Length", str(len(dados)))
-            self.send_header("Content-Disposition",
-                             'attachment; filename="{}"'.format(nome_zip))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(dados)
+            console.escrever("[admin] Projeto baixado em .zip ({} KB).", len(dados) // 1024)
+            self._enviar(200, dados, "application/zip",
+                         [("Content-Disposition", 'attachment; filename="{}"'.format(nome_zip))])
         except Exception as e:
-            print("[admin][erro] backup: {}".format(e))
+            console.escrever("[admin][erro] backup: {}", e)
             self._responder(500, json.dumps(
                 {"erro": "Falha ao gerar o zip: {}".format(str(e)[:200])}, ensure_ascii=False))
 
@@ -434,16 +461,10 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
                 mes or datetime.now().strftime("%Y-%m"))
             atividade.registrar("admin_export", usuario, self._ip(),
                                 mes=mes or "atual", eventos=len(eventos))
-            self.send_response(200)
-            self.send_header("Content-Type", "text/csv; charset=utf-8")
-            self.send_header("Content-Length", str(len(dados)))
-            self.send_header("Content-Disposition",
-                             'attachment; filename="{}"'.format(nome_arq))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(dados)
+            self._enviar(200, dados, "text/csv; charset=utf-8",
+                         [("Content-Disposition", 'attachment; filename="{}"'.format(nome_arq))])
         except Exception as e:
-            print("[admin][erro] exportar: {}".format(e))
+            console.escrever("[admin][erro] exportar: {}", e)
             self._responder(500, json.dumps(
                 {"erro": "Falha ao exportar: {}".format(str(e)[:200])}, ensure_ascii=False))
 
@@ -483,7 +504,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
                  "preco_entrada_usd_milhao": PRECO_ENTRADA_USD_MILHAO,
                  "preco_saida_usd_milhao": PRECO_SAIDA_USD_MILHAO}, ensure_ascii=False))
         except Exception as e:
-            print("[admin][erro] {}".format(e))
+            console.escrever("[admin][erro] {}", e)
             self._responder(500, json.dumps(
                 {"erro": "Falha ao ler os logs: {}".format(str(e)[:200])}, ensure_ascii=False))
 
@@ -542,8 +563,8 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
         self.close_connection = True
         mb = "{:.1f}".format(tamanho / 1048576.0).replace(".", ",")
         # rota em ASCII: o caminho vem do cliente e o console pode ser cp1252
-        print("[servidor] Requisição de {} MB recusada em {} (limite: {} MB).".format(
-            mb, rota[:100].encode("ascii", "replace").decode("ascii"), LIMITE_CORPO_MB))
+        console.escrever("[servidor] Requisição de {} MB recusada em {} (limite: {} MB).",
+            mb, rota[:100].encode("ascii", "replace").decode("ascii"), LIMITE_CORPO_MB)
         self._responder(413, json.dumps(
             {"erro": "O conteúdo enviado ({} MB) passou do limite de {} MB do servidor. "
                      "Envie menos telas ou imagens menores.".format(mb, LIMITE_CORPO_MB)},
@@ -582,14 +603,14 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
             else:
                 status, corpo = planner.rota_analisar(dados, usuario, self._ip())
         except Exception as e:
-            print("[planner][erro] {!a}".format(e)[:300])   # ascii(): seguro em console cp1252
+            console.escrever("[planner][erro] {}", str(e)[:300])
             status, corpo = 500, {"erro": "Erro interno do Planner. Tente de novo."}
         try:
             self._responder(status, json.dumps(corpo, ensure_ascii=False))
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             # A análise leva minutos: se a pessoa fechou a aba, o resultado já
             # está no log e não há para quem responder.
-            print("[planner] O navegador fechou a conexão antes da resposta ({}).".format(rota))
+            console.escrever("[planner] O navegador fechou a conexão antes da resposta ({}).", rota)
 
     def do_POST(self):
         # Caminho sem a query string (as rotas novas casam por ele)
@@ -626,8 +647,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
 
                     atualizar_registro_login(usuario["email"])
                     atividade.registrar("login", usuario, self._ip())
-                    print("[login] {} <{}> entrou com a conta Google.".format(
-                        usuario["nome"], usuario["email"]))
+                    console.escrever("[login] Entrada com conta Google (quem: trilha de atividade).")
 
                     self._responder(200, json.dumps(
                         {"success": True, "token": token, "usuario": usuario,
@@ -641,11 +661,10 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
 
         # 2. Rota de Logout: invalida a sessão no servidor
         if self.path == "/api/logout":
-            token = self._token_sessao()
-            usuario = SESSOES_ATIVAS.pop(token, None) if token else None
+            usuario = encerrar_sessao(self._token_sessao())
             if usuario:
                 atividade.registrar("logout", usuario, self._ip())
-                print("[login] {} <{}> saiu.".format(usuario["nome"], usuario["email"]))
+                console.escrever("[login] Saída registrada na trilha de atividade.")
             self._responder(200, json.dumps({"success": True}))
             return
 
@@ -694,8 +713,8 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
                     atividade.registrar("confluence", usuario, self._ip(), url=url[:300],
                                         status="ok", arquivo=resultado["arquivo"]["nome"],
                                         caracteres=len(resultado["arquivo"]["conteudo"]))
-                    print('[confluence] "{}" obtido ({} caracteres).'.format(
-                        resultado["arquivo"]["nome"], len(resultado["arquivo"]["conteudo"])))
+                    console.escrever('[confluence] "{}" obtido ({} caracteres).',
+                        resultado["arquivo"]["nome"], len(resultado["arquivo"]["conteudo"]))
                 else:
                     atividade.registrar("confluence", usuario, self._ip(), url=url[:300],
                                         status="opcoes", anexos=len(resultado.get("opcoes") or []))
@@ -707,7 +726,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
             except Exception as e:
                 atividade.registrar("confluence", usuario, self._ip(), url=url[:300],
                                     status="erro", erro=str(e)[:200])
-                print("[confluence][erro] {}".format(e))
+                console.escrever("[confluence][erro] {}", e)
                 self._responder(502, json.dumps(
                     {"erro": "Falha ao buscar no Confluence: {}".format(str(e)[:200])}, ensure_ascii=False))
             return
@@ -739,8 +758,8 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
             historico = dados.get("historico")
             if not isinstance(historico, list):
                 historico = None
-            print("[chat] Enviando mensagem ({} caracteres, {} de histórico) - sessão {}".format(
-                len(mensagem), len(historico) if historico else 0, sessao))
+            console.escrever("[chat] Enviando mensagem ({} caracteres, {} de histórico) - sessão {}",
+                len(mensagem), len(historico) if historico else 0, sessao)
             resposta, uso = enviar_para_agente(mensagem, sessao, historico)
             resposta = filtrar_falsos_positivos(resposta)
             # limites do GA4 (tamanho/quantidade): contados em codigo sobre o
@@ -760,7 +779,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                 # A pessoa saiu da página antes da resposta: a auditoria já foi
                 # registrada como ok - não pode virar um 2º evento de "erro".
-                print("[chat] O navegador fechou a conexão antes da resposta (sessão {}).".format(sessao))
+                console.escrever("[chat] O navegador fechou a conexão antes da resposta (sessão {}).", sessao)
         except ValueError as e:
             atividade.registrar("auditoria", usuario, self._ip(), sessao=sessao,
                                 status="erro", com_anexo=com_anexo, caracteres=tam_msg,
@@ -770,7 +789,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
             atividade.registrar("auditoria", usuario, self._ip(), sessao=sessao,
                                 status="erro", com_anexo=com_anexo, caracteres=tam_msg,
                                 erro=str(e)[:200], duracao_s=round(time.time() - inicio, 1))
-            print("[erro] {}".format(e))
+            console.escrever("[erro] {}", e)
             self._responder(502, json.dumps({"erro": str(e)}, ensure_ascii=False))
 
 
@@ -819,12 +838,12 @@ def _registrar_dns():
         subprocess.run(["ipconfig", "/registerdns"],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                        timeout=30, check=False)
-        print("[dns] Nome da máquina re-registrado no DNS com o IP atual "
-              "(ipconfig /registerdns). A propagação leva ~1-2 min.")
+        console.escrever("[dns] Nome da máquina re-registrado no DNS com o IP atual "
+                         "(ipconfig /registerdns). A propagação leva ~1-2 min.")
     except Exception as e:
-        print("[dns] Não consegui rodar 'ipconfig /registerdns' ({}). "
-              "Se a URL pelo nome não abrir nos colegas, rode o comando "
-              "manualmente no cmd.".format(str(e)[:80]))
+        console.escrever("[dns] Não consegui rodar 'ipconfig /registerdns' ({}). "
+                         "Se a URL pelo nome não abrir nos colegas, rode o comando "
+                         "manualmente no cmd.", str(e)[:80])
 
 
 def _backup_logs_periodico():
@@ -832,8 +851,8 @@ def _backup_logs_periodico():
     while True:
         n = atividade.backup(PASTA_LOGS_BACKUP)
         if n:
-            print("[backup] {} arquivo(s) de log copiado(s) para {}.".format(
-                n, PASTA_LOGS_BACKUP))
+            console.escrever("[backup] {} arquivo(s) de log copiado(s) para {}.",
+                n, PASTA_LOGS_BACKUP)
         time.sleep(24 * 3600)
 
 
@@ -850,42 +869,42 @@ def main():
         except OSError:
             porta += 1
     if servidor is None:
-        print("Não encontrei uma porta livre. Feche outros programas e tente de novo.")
+        console.escrever("Não encontrei uma porta livre. Feche outros programas e tente de novo.")
         sys.exit(1)
 
     url = "http://127.0.0.1:{}".format(porta)
     url_nome, url_fqdn, url_ip = _enderecos_de_acesso(porta)
-    print("=" * 62)
-    print("  {} - Auditor + Planner".format(NOME_PLATAFORMA.upper()))
-    print("  (Bridge / Bradesco IA Gen)")
-    print("=" * 62)
-    print("  Escutando na porta {} (0.0.0.0)".format(porta))
-    print("  No seu PC, abra:  {}".format(url))
-    print("      Auditor:  {}/auditor".format(url))
-    print("      Planner:  {}/planner".format(url))
-    print()
+    console.escrever("=" * 62)
+    console.escrever("  {} - Auditor + Planner", NOME_PLATAFORMA.upper())
+    console.escrever("  (Bridge / Bradesco IA Gen)")
+    console.escrever("=" * 62)
+    console.escrever("  Escutando na porta {} (0.0.0.0)", porta)
+    console.escrever("  No seu PC, abra:  {}", url)
+    console.escrever("      Auditor:  {}/auditor", url)
+    console.escrever("      Planner:  {}/planner", url)
+    console.escrever()
     if url_nome or url_fqdn:
-        print("  COMPARTILHE ESTA URL (nome da máquina - NÃO muda com a VPN):")
+        console.escrever("  COMPARTILHE ESTA URL (nome da máquina - NÃO muda com a VPN):")
         if url_nome:
-            print("      {}".format(url_nome))
+            console.escrever("      {}", url_nome)
         if url_fqdn:
-            print("      {}  {}".format(url_fqdn,
-                  "(use esta se a de cima não abrir)" if url_nome else ""))
+            console.escrever("      {}  {}", url_fqdn,
+                             "(use esta se a de cima não abrir)" if url_nome else "")
         if url_ip:
-            print("  IP atual (muda a cada VPN - evite compartilhar): {}".format(url_ip))
+            console.escrever("  IP atual (muda a cada VPN - evite compartilhar): {}", url_ip)
     elif url_ip:
-        print("  Para outros na rede:  {}".format(url_ip))
-        print("  (atenção: este IP muda quando a VPN reconecta)")
+        console.escrever("  Para outros na rede:  {}", url_ip)
+        console.escrever("  (atenção: este IP muda quando a VPN reconecta)")
     else:
-        print("  Para outros na rede:  http://SEU-IP:{}".format(porta))
-        print("  (descubra seu IP com 'ipconfig' -> Endereço IPv4)")
-    print()
-    print("  Ferramentas: acrescente /auditor ou /planner ao endereço")
-    print("  (painel administrativo: /admin).")
-    print("  Cada usuário/aba tem a sua própria sessão.")
-    print("  >>> NÃO FECHE ESTA JANELA enquanto a plataforma estiver em uso <<<")
-    print("      (para encerrar, feche esta janela ou pressione Ctrl+C)")
-    print("=" * 62)
+        console.escrever("  Para outros na rede:  http://SEU-IP:{}", porta)
+        console.escrever("  (descubra seu IP com 'ipconfig' -> Endereço IPv4)")
+    console.escrever()
+    console.escrever("  Ferramentas: acrescente /auditor ou /planner ao endereço")
+    console.escrever("  (painel administrativo: /admin).")
+    console.escrever("  Cada usuário/aba tem a sua própria sessão.")
+    console.escrever("  >>> NÃO FECHE ESTA JANELA enquanto a plataforma estiver em uso <<<")
+    console.escrever("      (para encerrar, feche esta janela ou pressione Ctrl+C)")
+    console.escrever("=" * 62)
 
     atividade.registrar("servidor_iniciado", porta=porta)
 
@@ -898,9 +917,9 @@ def main():
 
     try:
         obter_token()
-        print("[inicialização] Token pronto.")
+        console.escrever("[inicialização] Token pronto.")
     except Exception as e:
-        print("[inicialização] Ainda sem token ({}). Vou tentar em 2º plano.".format(str(e)[:120]))
+        console.escrever("[inicialização] Ainda sem token ({}). Vou tentar em 2º plano.", str(e)[:120])
 
     threading.Thread(target=renovador_token, daemon=True).start()
 
@@ -910,4 +929,4 @@ def main():
     try:
         servidor.serve_forever()
     except KeyboardInterrupt:
-        print("\nEncerrado. Até mais!")
+        console.escrever("\nEncerrado. Até mais!")
