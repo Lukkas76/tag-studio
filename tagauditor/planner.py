@@ -205,12 +205,14 @@ _RE_CONTROLE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _RE_ESPACOS = re.compile(r"\s+")
 # Metade de um emoji (surrogate UTF-16 solto): aparece quando o navegador
 # corta um nome no meio do emoji. Não vira UTF-8 - derrubaria o envio à IA.
-_RE_SURROGATE = re.compile("[\ud800-\udfff]")
+# (faixa montada com chr(): o Sonar não consegue ler surrogates num literal)
+_RE_SURROGATE = re.compile("[{}-{}]".format(chr(0xD800), chr(0xDFFF)))
+_SUBSTITUTO = "�"     # o caractere de substituição (losango com "?")
 
 
 def sem_surrogates(texto):
-    """Troca surrogates soltos por "�" (texto que vem do navegador)."""
-    return _RE_SURROGATE.sub("�", texto) if isinstance(texto, str) else texto
+    """Troca surrogates soltos por U+FFFD (texto que vem do navegador)."""
+    return _RE_SURROGATE.sub(_SUBSTITUTO, texto) if isinstance(texto, str) else texto
 
 
 def _console(mensagem):

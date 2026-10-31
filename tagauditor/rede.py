@@ -1,18 +1,26 @@
 """HTTP básico (POST/GET de JSON) para as APIs internas do Bradesco.
 
-O ambiente interno usa certificados próprios, por isso a verificação SSL é
-desligada aqui (mesmo comportamento do navegador corporativo com CA interna).
+TLS sempre COM verificação do certificado e do nome do servidor — CTX_SSL vale
+também para o Confluence, o login Google e o Figma. As autoridades
+certificadoras vêm do sistema (no Windows, as do Windows, inclusive a
+corporativa); a CA interna do banco, se faltar no sistema, entra por
+ARQUIVO_CA (config.py).
 """
 import json
 import ssl
 import urllib.error
 import urllib.request
 
-from .config import TIMEOUT_SEGUNDOS
+from . import console
+from .config import ARQUIVO_CA, TIMEOUT_SEGUNDOS
 
 CTX_SSL = ssl.create_default_context()
-CTX_SSL.check_hostname = False
-CTX_SSL.verify_mode = ssl.CERT_NONE
+if ARQUIVO_CA:
+    try:
+        CTX_SSL.load_verify_locations(cafile=ARQUIVO_CA)
+    except (OSError, ssl.SSLError) as _erro_ca:
+        console.escrever("[rede] Não consegui carregar a CA de {} ({}); sigo só com as "
+                         "CAs do sistema.", ARQUIVO_CA, _erro_ca)
 
 
 def post_json(url, corpo, headers_extras=None):

@@ -146,6 +146,12 @@ LIMITE_USER_PROPERTIES = 25      # user properties distintas na propriedade GA4
 # ---- Servidor ----------------------------------------------------------------
 PORTA_INICIAL = 8765
 TIMEOUT_SEGUNDOS = 300
+# Toda conexao HTTPS (Bridge, Confluence, Google, Figma) verifica o certificado
+# do servidor contra as autoridades certificadoras do sistema - no Windows, as
+# mesmas do Windows, inclusive a corporativa. Se alguma API interna falhar com
+# erro de CERTIFICADO (ex.: num container sem a CA do banco), aponte aqui o
+# arquivo .pem da CA interna (ou use a variavel de ambiente TAG_STUDIO_CA).
+ARQUIVO_CA = os.environ.get("TAG_STUDIO_CA", "")
 TOKEN_VALIDADE_SEGUNDOS = 25 * 60
 
 TENTATIVAS_GATEWAY = 5
@@ -294,12 +300,6 @@ FIGMA_API = "https://api.figma.com"
 # Proxy corporativo ate o Figma. Vazio = descobre sozinho (conexao direta,
 # depois os mesmos proxies do login Google). Ex.: "http://proxy.bradesco.com.br:8080"
 PROXY_FIGMA = ""
-# Verifica o certificado TLS da API do Figma (o token dá leitura dos arquivos
-# da conta: não pode ir para um servidor falso no meio do caminho). O Python
-# no Windows confia nas mesmas autoridades certificadoras do Windows, inclusive
-# a corporativa. Só use False se a busca falhar com erro de CERTIFICADO e o
-# time de segurança aprovar.
-FIGMA_VERIFICAR_TLS = True
 FIGMA_TIMEOUT = 60
 # Escala da imagem exportada: frames estreitos (celular) saem ampliados ate
 # FIGMA_ESCALA_MAX para a IA ler os textos; largos saem com ~FIGMA_LARGURA_ALVO px.

@@ -48,15 +48,14 @@ from . import console
 from .config import (
     FIGMA_TOKEN, FIGMA_API, PROXY_FIGMA, FIGMA_TIMEOUT, FIGMA_ESCALA_MAX,
     FIGMA_LARGURA_ALVO, FIGMA_MAX_FRAMES, FIGMA_MAX_OPCOES, FIGMA_MAX_ELEMENTOS,
-    FIGMA_CACHE_MIN, FIGMA_VERIFICAR_TLS,
+    FIGMA_CACHE_MIN,
 )
 from .rede import CTX_SSL
 from . import login_google
 
-# TLS do Figma COM verificação de certificado (o rede.CTX_SSL desliga a
-# verificação para as APIs internas do Bradesco, de CA própria). O token do
-# Figma não pode ser entregue a quem atender a conexão no meio do caminho.
-_CTX_FIGMA = ssl.create_default_context() if FIGMA_VERIFICAR_TLS else CTX_SSL
+# TLS do Figma COM verificação de certificado (rede.CTX_SSL): o token do Figma
+# não pode ser entregue a quem atender a conexão no meio do caminho.
+_CTX_FIGMA = CTX_SSL
 
 
 class ErroFigma(Exception):
@@ -648,8 +647,7 @@ def _erro_rede(exc, token=None):
         return ErroFigma(
             "Não consegui confirmar o certificado de segurança (TLS) da API do Figma. Em "
             "rede com inspeção de TLS, a autoridade certificadora da empresa precisa estar "
-            "instalada no Windows do servidor (peça à TI). Só se o time de segurança aprovar, "
-            "dá para desligar a verificação com FIGMA_VERIFICAR_TLS = False no "
+            "instalada no sistema do servidor (peça à TI) ou apontada em ARQUIVO_CA no "
             "tagauditor/config.py. {}".format(_DICA_UPLOAD), 502)
     # Mascara ANTES de cortar: um token cortado no meio escaparia da troca.
     detalhe = _limpar(_sem_token(razao, token), 150) or type(exc).__name__
