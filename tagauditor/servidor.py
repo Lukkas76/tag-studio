@@ -104,7 +104,7 @@ _ARQUIVOS_ESTATICOS = _listar_estaticos()
 # Todo Content-Type que o servidor responde sai desta lista.
 _TIPOS_RESPOSTA = frozenset(_MIME_ESTATICO.values()) | {
     "application/json; charset=utf-8", "text/plain; charset=utf-8",
-    "text/html; charset=utf-8", "text/csv; charset=utf-8", "application/zip",
+    "text/html; charset=utf-8", "application/zip",
 }
 
 
@@ -278,7 +278,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
     def _enviar(self, status, dados, tipo, extras=()):
         """Única saída de resposta. Content-Type só de _TIPOS_RESPOSTA; o
         tamanho vai como número (int); HSTS (vale quando servido por HTTPS) e
-        nosniff (o navegador não "adivinha" que um JSON é HTML) em TODA resposta."""
+        nosniff (o navegador não "adivinha" o tipo do conteúdo) em TODA resposta."""
         tipo_ok = next((t for t in _TIPOS_RESPOSTA if t == tipo), "application/octet-stream")
         self.send_response(status)
         self.send_header("Content-Type", tipo_ok)
@@ -291,14 +291,16 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(dados)
 
-    def _responder(self, status, corpo, tipo="application/json; charset=utf-8"):
-        if tipo.startswith("application/json"):
-            # Mesmo JSON (JSON.parse devolve os mesmos textos), sem "<", ">" e
-            # "&" literais: a resposta nunca é lida como HTML.
-            corpo = corpo.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+    def _responder(self, status, corpo):
+        """Resposta de texto: o JSON das rotas /api/... e as mensagens de erro.
+        Sai com html.escape (&, <, >, " e ' viram entidades HTML): nada do que
+        veio de fora (resposta da IA, plano do Confluence, log, dados da conta)
+        é lido como HTML pelo navegador. O front desfaz o escape antes do
+        JSON.parse (TA.textoDoServidor no nucleo.js; lerJson no admin.js)."""
         # "replace": meio emoji (surrogate solto vindo do navegador) não pode
         # derrubar a resposta depois do trabalho feito.
-        self._enviar(status, corpo.encode("utf-8", "replace"), tipo)
+        self._enviar(status, html.escape(corpo).encode("utf-8", "replace"),
+                     "text/plain; charset=utf-8")
 
     def _responder_bytes(self, status, dados, tipo):
         self._enviar(status, dados, tipo)
@@ -309,8 +311,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
         dados, _mime = _ler_estatico(nome)
         if dados is None:
             self._responder(500, "static/{} não encontrado. Verifique se a "
-                            "pasta 'static' está na raiz do projeto.".format(nome),
-                            "text/plain; charset=utf-8")
+                            "pasta static está na raiz do projeto.".format(nome))
             return
         pagina = _trocar_placeholders(dados.decode("utf-8"))
         self._responder_bytes(200, pagina.encode("utf-8"), "text/html; charset=utf-8")
@@ -318,7 +319,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
     def _servir_estatico(self, nome):
         dados, mime = _ler_estatico(nome)
         if dados is None:
-            self._responder(404, "Não encontrado", "text/plain; charset=utf-8")
+            self._responder(404, "Não encontrado")
             return
         self._responder_bytes(200, dados, mime)
 
@@ -366,7 +367,7 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
         elif caminho in ("/health", "/healthz", "/ready"):
             self._responder(200, json.dumps({"status": "ok"}))
         else:
-            self._responder(404, "Não encontrado", "text/plain; charset=utf-8")
+            self._responder(404, "Não encontrado")
 
     def _api_resumo(self):
         """Resumo de uso do mês para a Home (ver _resumo_do_mes). Sem log."""
@@ -428,7 +429,9 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
     _CSV_COLS_FIXAS = ["quando", "acao", "email", "nome", "ip", "status"]
 
     def _api_admin_exportar(self):
-        """Exporta a trilha de um mês em CSV (Excel-friendly), só para admin."""
+        """Exporta a trilha de um mês em CSV (Excel-friendly), só para admin.
+        O CSV vai dentro do JSON ({arquivo, csv}), pela mesma saída escapada das
+        outras rotas; o painel (admin.js) monta o arquivo para download."""
         usuario = self._usuario_atual()
         if not usuario:
             self._responder(401, json.dumps({"erro": "Sessão inválida ou expirada. Faça login novamente."}))
@@ -455,14 +458,12 @@ class ManipuladorChat(http.server.BaseHTTPRequestHandler):
             escritor.writerow(colunas)
             for ev in eventos:
                 escritor.writerow([_celula_csv(ev.get(c, "")) for c in colunas])
-            # BOM para o Excel abrir os acentos corretamente
-            dados = ("﻿" + buffer.getvalue()).encode("utf-8")
             nome_arq = "tag-auditor-logs_{}.csv".format(
                 mes or datetime.now().strftime("%Y-%m"))
             atividade.registrar("admin_export", usuario, self._ip(),
                                 mes=mes or "atual", eventos=len(eventos))
-            self._enviar(200, dados, "text/csv; charset=utf-8",
-                         [("Content-Disposition", 'attachment; filename="{}"'.format(nome_arq))])
+            self._responder(200, json.dumps(
+                {"arquivo": nome_arq, "csv": buffer.getvalue()}, ensure_ascii=False))
         except Exception as e:
             console.escrever("[admin][erro] exportar: {}", e)
             self._responder(500, json.dumps(

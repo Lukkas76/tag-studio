@@ -24,7 +24,8 @@
         if (r.status === 401) TA.limparSessao();
         return null;
       }
-      return r.json().then(function(d){
+      return r.text().then(function(t){
+        var d = JSON.parse(TA.textoDoServidor(t));
         var usuario = d.usuario || {};
         usuario.admin = !!d.admin;
         TA.salvarSessao(null, usuario);

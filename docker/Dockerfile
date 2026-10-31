@@ -3,7 +3,7 @@
 # 1001 (sem root), com a pasta de trabalho em /opt/app-root/src.
 # A pipeline le a imagem da primeira instrucao de base para o scan do StackRox;
 # nao escreva a palavra-chave em maiusculas em comentarios acima dela.
-FROM nexusrepository.bradesco.com.br:8500/ubi9_custom/python-312:daily-update
+FROM artefatos.bradesco.com.br/imagembase-docker-central/ubi9_custom/python-312:daily-update
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

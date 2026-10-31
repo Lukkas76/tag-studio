@@ -1119,12 +1119,11 @@
   // ---- Filtros ---------------------------------------------------------------------
   function preencherSelect(sel, valores, rotulo){
     var atual = sel.value;
-    sel.innerHTML = '';
-    // new Option(texto, valor): o texto entra como texto puro, nunca como HTML
-    sel.add(new Option(rotulo, ''));
-    valores.forEach(function(v){
-      sel.add(new Option(String(v.texto), String(v.valor)));
-    });
+    // texto e valor passam por esc(), como no resto do painel: nunca viram HTML
+    sel.innerHTML = '<option value="">' + esc(rotulo) + '</option>' +
+      valores.map(function(v){
+        return '<option value="' + esc(v.valor) + '">' + esc(v.texto) + '</option>';
+      }).join('');
     sel.value = atual;
     if (sel.selectedIndex < 0) sel.selectedIndex = 0;
   }
@@ -1400,11 +1399,17 @@
     aviso.hidden = true;
     aviso.innerHTML = '';
   }
+  // O servidor manda o texto com html.escape (& < > " ' viram entidades HTML);
+  // desfaz numa passada só antes do JSON.parse (o mesmo do nucleo.js).
+  var ENTIDADES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#x27;': "'" };
+  function textoDoServidor(texto){
+    return String(texto).replace(/&(?:amp|lt|gt|quot|#x27);/g, function(e){ return ENTIDADES[e]; });
+  }
   // Corpo da resposta como objeto mesmo quando o servidor não devolve JSON
   function lerJson(r){
     return r.text().then(function(texto){
       var d = null;
-      try { d = JSON.parse(texto); } catch (e) { d = null; }
+      try { d = JSON.parse(textoDoServidor(texto)); } catch (e) { d = null; }
       if (!d || typeof d !== 'object'){
         d = { erro: 'Resposta inesperada do servidor (HTTP ' + r.status + ').' };
       }
@@ -1486,15 +1491,16 @@
         });
       }
       var m = /filename="([^"]+)"/.exec(r.headers.get('Content-Disposition') || '');
-      return r.blob().then(function(blob){
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = (m && m[1]) || nomePadrao;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-      });
+      return r.blob().then(function(blob){ salvarArquivo(blob, (m && m[1]) || nomePadrao); });
     });
+  }
+  function salvarArquivo(blob, nome){
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
   }
   function rotuloBotao(btn, texto){ btn.querySelector('.txt').textContent = texto; }
 
@@ -1515,7 +1521,19 @@
     if (!token()){ mostrarAviso('Entre no ' + nomePlataforma + ' antes de exportar.', true); return; }
     btnExportar.disabled = true;
     var qs = selMes.value ? '?mes=' + encodeURIComponent(selMes.value) : '';
-    baixar('/api/admin/exportar' + qs, slugPlataforma() + '-logs.csv')
+    // O servidor devolve {arquivo, csv}: o arquivo é montado aqui (BOM para
+    // o Excel abrir os acentos corretamente)
+    fetch('/api/admin/exportar' + qs, { headers: { 'Authorization': 'Bearer ' + token() } })
+    .then(lerJson)
+    .then(function(res){
+      if (res.status !== 200){
+        var erro = new Error(res.d.erro || ('HTTP ' + res.status));
+        erro.status = res.status;
+        throw erro;
+      }
+      salvarArquivo(new Blob(['\uFEFF' + (res.d.csv || '')], { type: 'text/csv;charset=utf-8' }),
+                    res.d.arquivo || (slugPlataforma() + '-logs.csv'));
+    })
     .catch(function(e){ mostrarAviso('Falha ao exportar: ' + e.message, e.status === 401); })
     .then(function(){ btnExportar.disabled = false; });
   }

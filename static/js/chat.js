@@ -156,15 +156,10 @@
       }
       function tituloAuto(c){
         if (c.tituloManual) return;
-        // o título sai da 1ª mensagem da pessoa: não precisa olhar além das primeiras
-        var n = Math.min(c.mensagens.length, 20);
-        for (var i = 0; i < n; i++){
-          if (c.mensagens[i].role === 'usuario'){
-            var t = (c.mensagens[i].display || '').trim();
-            if (t){ c.titulo = t.slice(0, 48) + (t.length > 48 ? '…' : ''); }
-            break;
-          }
-        }
+        // o título sai da 1ª mensagem da pessoa
+        var primeira = c.mensagens.filter(function(m){ return m.role === 'usuario'; })[0];
+        var t = primeira ? (primeira.display || '').trim() : '';
+        if (t){ c.titulo = t.slice(0, 48) + (t.length > 48 ? '…' : ''); }
         if (c.id === estado.atualId) tituloConversa.textContent = c.titulo;
       }
       var MAX_HIST_ENVIO = 30;

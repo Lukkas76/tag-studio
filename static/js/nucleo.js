@@ -27,6 +27,15 @@
     localStorage.removeItem('tag_auditor_user');
   };
 
+  // ---- Resposta do servidor -------------------------------------------------
+  // O servidor manda o texto (o JSON das rotas /api/...) com html.escape:
+  // & < > " ' viram entidades HTML. Aqui o escape é desfeito antes do
+  // JSON.parse — numa passada só, então "&amp;lt;" volta a ser "&lt;".
+  var ENTIDADES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#x27;': "'" };
+  TA.textoDoServidor = function(texto){
+    return String(texto).replace(/&(?:amp|lt|gt|quot|#x27);/g, function(e){ return ENTIDADES[e]; });
+  };
+
   // Copia texto funcionando também em HTTP (navigator.clipboard só existe em
   // HTTPS/localhost; na URL de rede usa o truque do textarea + execCommand).
   TA.copiarTexto = function(texto){

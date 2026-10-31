@@ -8,7 +8,8 @@
   // Corpo da resposta como objeto, mesmo quando o servidor não devolve JSON
   // (ex.: 413 em texto puro) - assim quem chama sempre lê dados.erro.
   function corpoJson(r){
-    return r.text().then(function(t){
+    return r.text().then(function(bruto){
+      var t = TA.textoDoServidor(bruto);
       try { return JSON.parse(t); }
       catch (e) { return { erro: (t && t.length < 300) ? t : ('Erro HTTP ' + r.status + '.') }; }
     });
